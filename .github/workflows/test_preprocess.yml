@@ -13,11 +13,11 @@ jobs:
     
         - name: Install Miniconda
           run: |
-            bash miniconda-setup.sh -b -p $HOME/miniconda
+            bash ${{ github.workspace }}/miniconda-setup.sh -b -p $HOME/miniconda
             source "$HOME/miniconda/etc/profile.d/conda.sh"
     
         - name: Create Conda environment
           run: |
-            conda env create -f environment.yml
+            conda env create -f ${{ github.workspace }}/environment.yml
             conda activate myenv
     
