@@ -13,7 +13,7 @@ jobs:
     
         - name: Install Miniconda
           run: |
-            bash miniconda_setup.sh -b -p $HOME/miniconda
+            bash miniconda_setup.sh
     
         - name: Create Conda environment
           run: |
