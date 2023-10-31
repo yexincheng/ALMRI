@@ -16,6 +16,9 @@ jobs:
             bash miniconda_setup.sh
     
         - name: Create Conda environment
+          shell: bash
           run: |
-            conda env create -f environment.yml -n samal && conda activate samal
+            conda env create -f environment.yml -n samal
+            echo "env created"
+            conda $CONDA/bin/activate samal
     
