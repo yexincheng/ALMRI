@@ -111,7 +111,9 @@ for p in tqdm(ckp_paths):
         pre, _ = infer(imgs, p, sam_model_type, device)
         dice = compute_dice_coefficient(gts, pre)
         avg_dice.append(dice)
+    print(f'Dice for Subject {t} on Model {p}: ', dice)
     dice_test.append(np.mean(avg_dice))
+    print(f'Average Dice for Model {p}: ', np.mean(avg_dice))
 
 # x = list(range(len(dice_test)))
 plt.plot(dice_test)
