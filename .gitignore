@@ -9,3 +9,4 @@ checkpoints*
 # hpc logs
 *error.txt
 *out.txt
+*.png
