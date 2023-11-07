@@ -16,6 +16,8 @@ jobs:
             bash miniconda_setup.sh
             export PATH="/home/runner/miniconda3/bin:$PATH"
             source ~/.bashrc
+            source /home/runner/miniconda3/bin/activate
+            conda init bash
     
         - name: Create Conda environment
           shell: bash
