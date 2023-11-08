@@ -16,12 +16,13 @@ jobs:
             bash miniconda_setup.sh
             export PATH="/home/runner/miniconda3/bin:$PATH"
             source ~/.bashrc
-            source /home/runner/miniconda3/bin/activate
-            conda init bash
+            
     
         - name: Create Conda environment
           shell: bash
           run: |
+            source /home/runner/miniconda3/bin/activate
+            conda init bash
             conda env create -f environment.yml -n samal
             echo "env created"
             conda activate samal
