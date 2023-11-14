@@ -10,3 +10,6 @@ checkpoints*
 *error.txt
 *out.txt
 *.png
+
+# wandb log
+wandb
