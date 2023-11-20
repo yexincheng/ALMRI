@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --nodes 1
-#SBATCH --job-name=sam_random
+#SBATCH --job-name=sam_random150
 #SBATCH --ntasks 1
 #SBATCH -c 30
 #SBATCH --mem=50000
-#SBATCH -o sam_random_out.txt
-#SBATCH -e sam_random_error.txt
+#SBATCH -o sam_random_out150.txt
+#SBATCH -e sam_random_error150.txt
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
@@ -18,4 +18,4 @@ module load gnu/5.4.0
 source activate medsam
 # wandb login 4aaa2e71cdec13a78a42c6ceac38dd0c7235a131
 # wandb login --relogin
-srun python train.py --num_epochs 100
+srun python train.py --num_epochs 150

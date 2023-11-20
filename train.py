@@ -13,38 +13,9 @@ from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
 import matplotlib.pyplot as plt
 import argparse
+from utils import NpzDataset
+import wandb
 
-# create a dataset class to load npz data and return back image embeddings and ground truth
-class NpzDataset(Dataset): 
-    def __init__(self, sample_pool_path):
-        self.npz_files = sorted(sample_pool_path) 
-        # print(self.npz_files[0])
-        self.npz_data = [np.load(f) for f in self.npz_files]
-        self.ori_gts = np.vstack([d['gts'] for d in self.npz_data])
-        self.img_embeddings = np.vstack([d['img_embeddings'] for d in self.npz_data])
-        # print(f"{self.img_embeddings.shape=}, {self.ori_gts.shape=}")
-    
-    def __len__(self):
-        return self.ori_gts.shape[0]
-
-    def __getitem__(self, index):
-        img_embed = self.img_embeddings[index]
-        gt2D = self.ori_gts[index]
-        y_indices, x_indices = np.where(gt2D > 0)
-        x_min, x_max = np.min(x_indices), np.max(x_indices)
-        y_min, y_max = np.min(y_indices), np.max(y_indices)
-        # add perturbation to bounding box coordinates
-        # H, W = gt2D.shape
-        # x_min = max(0, x_min - np.random.randint(0, 20))
-        # x_max = min(W, x_max + np.random.randint(0, 20))
-        # y_min = max(0, y_min - np.random.randint(0, 20))
-        # y_max = min(H, y_max + np.random.randint(0, 20))
-        # bboxes = np.array([x_min, y_min, x_max, y_max])
-        # whole image as bbox
-        bboxes = np.array([0, 0, gt2D.shape[1], gt2D.shape[0]])
-        # convert img embedding, mask, bounding box to torch tensor
-        return torch.tensor(img_embed).float(), torch.tensor(gt2D[None, :,:]).long(), torch.tensor(bboxes).float()
-    
 
 
 if  __name__ == '__main__':
@@ -79,6 +50,24 @@ if  __name__ == '__main__':
     # Set up the optimizer, hyperparameter tuning will improve performance here
     optimizer = torch.optim.Adam(sam_model.mask_decoder.parameters(), lr=1e-5, weight_decay=0)
     seg_loss = monai.losses.DiceCELoss(sigmoid=True, squared_pred=True, reduction='mean')
+    save_path_ckp_epoch = os.path.join(save_path_ckp, f'epoch{args.num_epochs}')
+    os.makedirs(save_path_ckp_epoch, exist_ok=True)
+
+    # wandb
+    # wandb.login(key='4aaa2e71cdec13a78a42c6ceac38dd0c7235a131', relogin=True, settings=wandb.Settings(_service_wait=300))
+    # wandb.init(
+    #     project="SAM-Activelearning", 
+    #     group="random",
+    #     name=f'{args.base_model}_{args.sam_model_type}_{args.task}_{args.strategy}_epoch{args.num_epochs}',
+    #     config = {
+    #         "task": args.task,
+    #         'label_id': args.label_id,
+    #         'base_model': args.base_model,
+    #         "model": args.sam_model_type,
+    #         "strategy": args.strategy,
+    #         "num_epochs": args.num_epochs
+    #     }
+    # )
 
     for i in range(len(training_pool)):
         np.random.seed(2023)
@@ -134,12 +123,13 @@ if  __name__ == '__main__':
             epoch_loss /= step
             losses.append(epoch_loss)
             print(f'EPOCH: {epoch}, Loss: {epoch_loss}')
+            # wandb.log({f"Train/loss of {num_samples} num sample": epoch_loss})
             # save the latest model checkpoint
-            torch.save(sam_model.state_dict(), os.path.join(save_path_ckp, f'sam_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
+            torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'sam_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
             # save the best model
             if epoch_loss < best_loss:
                 best_loss = epoch_loss
-                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp, f'sam_{args.sam_model_type}_{num_samples:02d}_best.pth'))
+                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'sam_{args.sam_model_type}_{num_samples:02d}_best.pth'))
 
         # plot loss
         plt.plot(losses)
@@ -152,3 +142,5 @@ if  __name__ == '__main__':
 
     with open(os.path.join(sampling_datapath, f'{args.strategy}_pool.json'), 'w') as f:
         json.dump(sample_pool, f, indent=4)
+
+    # wandb.finish()

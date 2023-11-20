@@ -7,8 +7,8 @@ checkpoints*
 **/.ipynb_checkpoints/
 
 # hpc logs
-*error.txt
-*out.txt
+*error*.txt
+*out*.txt
 *.png
 
 # wandb log

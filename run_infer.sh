@@ -13,6 +13,8 @@ module load cuda/10.0.130
 module load gnu/5.4.0
 # module load anaconda
 
+export WANDB_BASE_URL=http://172.17.0.1:8080
+
 source activate medsam
 
 srun python infer.py 

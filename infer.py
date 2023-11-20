@@ -8,6 +8,7 @@ from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
 from utils import compute_dice_coefficient, get_bbox_from_mask
 from metrics import compute_dice_coefficient
+import wandb
 
 # batch inference
 def infer(gts, embeddings, ckp_path, model_type, device):
@@ -60,11 +61,31 @@ base_model = 'SAM'
 save_path_ckp = os.path.join('./checkpoints/', base_model + '_' + task + '_' + strategy)
 # device 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+num_epochs = 50
+label_id = 3
 ckp_paths = sorted(glob(os.path.join(save_path_ckp, '*best.pth')))
 testing_pool_path = os.path.join(prefix, task, 'test')
 testing_pool = glob(os.path.join(testing_pool_path, '*.npz'))
 dice_test = []
+
+#
+wandb.logi(key='4aaa2e71cdec13a78a42c6ceac38dd0c7235a131', relogin=True)
+wandb.init(
+    # Set the project where this run will be logged
+    project="SAM-Activelearning", 
+    group="random",
+    name=f'{base_model}_{sam_model_type}_{task}_{strategy}_epoch{num_epochs}',
+    config = {
+        "task": task,
+        'label_id': label_id,
+        'base_model': base_model,
+        "model": sam_model_type,
+        "strategy": strategy,
+        "num_epochs": num_epochs
+    }
+)
+table = wandb.Table(columns=["image", "pred", "gt", 'id', 'dice'])
+
 
 for p in tqdm(ckp_paths):
     avg_dice = []
