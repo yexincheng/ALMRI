@@ -2,6 +2,20 @@ import numpy as np
 from torch.utils.data import Dataset
 import torch
 
+def min_max_norm_3dimg(img):
+    """Min-max normalization [0, 1] for 3D image
+    SAM ask for a uint image, with pixel values in [0, 255]
+    Args:
+        img: 3D image
+    Return:
+        img: normalized uint 3D image
+    """
+    
+    img_norm = (img - np.min(img)) / np.clip(img.max() - img.min(), a_min=1e-8, a_max=None) * 255
+    img_norm[img==0] = 0
+    img_norm = img_norm.astype(np.uint8)
+    return img_norm
+
 def get_bbox_from_mask(mask):
     '''Returns a bounding box from a mask'''
     # y_indices, x_indices = np.where(mask > 0)
