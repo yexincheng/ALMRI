@@ -16,5 +16,6 @@ module load gnu/5.4.0
 export WANDB_BASE_URL=http://172.17.0.1:8080
 
 source activate medsam
-
-srun python infer.py 
+wandb login 4aaa2e71cdec13a78a42c6ceac38dd0c7235a131
+wandb offline
+srun python eval.py --num_epochs 100 --wandb True

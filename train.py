@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import argparse
 from utils import NpzDataset
 import wandb
+from strategy import random_sampling
 
 
 
@@ -28,6 +29,7 @@ if  __name__ == '__main__':
     parser.add_argument('--sam_model_type', type=str, default='vit_b', help='SAM model type')
     parser.add_argument('--checkpoint', type=str, default='./checkpoints/SAM/sam_vit_b_01ec64.pth', help='SAM checkpoint for fine tunning')
     parser.add_argument('--num_epochs', type=int, default=50, help='number of epochs for fine tunning')
+    parser.add_argument('--wandb', type=bool, default=False, help='log to wandb')
     args = parser.parse_args()
     # device 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,34 +52,29 @@ if  __name__ == '__main__':
     # Set up the optimizer, hyperparameter tuning will improve performance here
     optimizer = torch.optim.Adam(sam_model.mask_decoder.parameters(), lr=1e-5, weight_decay=0)
     seg_loss = monai.losses.DiceCELoss(sigmoid=True, squared_pred=True, reduction='mean')
-    save_path_ckp_epoch = os.path.join(save_path_ckp, f'epoch{args.num_epochs}')
+    save_path_ckp_epoch = os.path.join(save_path_ckp, f'epochs{args.num_epochs}')
     os.makedirs(save_path_ckp_epoch, exist_ok=True)
 
     # wandb
-    # wandb.login(key='4aaa2e71cdec13a78a42c6ceac38dd0c7235a131', relogin=True, settings=wandb.Settings(_service_wait=300))
-    # wandb.init(
-    #     project="SAM-Activelearning", 
-    #     group="random",
-    #     name=f'{args.base_model}_{args.sam_model_type}_{args.task}_{args.strategy}_epoch{args.num_epochs}',
-    #     config = {
-    #         "task": args.task,
-    #         'label_id': args.label_id,
-    #         'base_model': args.base_model,
-    #         "model": args.sam_model_type,
-    #         "strategy": args.strategy,
-    #         "num_epochs": args.num_epochs
-    #     }
-    # )
+    if args.wandb:
+        wandb.login(key='4aaa2e71cdec13a78a42c6ceac38dd0c7235a131', relogin=True, settings=wandb.Settings(_service_wait=300))
+        wandb.init(
+            project="SAM-Activelearning", 
+            group="random",
+            name=f'{args.base_model}_{args.sam_model_type}_{args.task}_{args.strategy}_epochs{args.num_epochs}',
+            config = {
+                "task": args.task,
+                'label_id': args.label_id,
+                'base_model': args.base_model,
+                "model": args.sam_model_type,
+                "strategy": args.strategy,
+                "num_epochs": args.num_epochs
+            }
+        )
 
     for i in range(len(training_pool)):
-        np.random.seed(2023)
-        next_sample = np.random.choice(training_pool)
-        sample_pool.append(next_sample)
-        training_pool.remove(next_sample)
+        sample_pool, training_pool = random_sampling(training_pool)
 
-        # next_sample = np.random.choice(training_pool)
-        # sample_pool.append(next_sample)
-        # training_pool.remove(next_sample)
         num_samples = len(sample_pool)
         if num_samples > 2 and num_samples <= 5:
             batch_size = 32
@@ -123,7 +120,8 @@ if  __name__ == '__main__':
             epoch_loss /= step
             losses.append(epoch_loss)
             print(f'EPOCH: {epoch}, Loss: {epoch_loss}')
-            # wandb.log({f"Train/loss of {num_samples} num sample": epoch_loss})
+            if args.wandb:
+                wandb.log({f"Train/loss of {num_samples} num sample": epoch_loss})
             # save the latest model checkpoint
             torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'sam_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
             # save the best model
@@ -143,4 +141,6 @@ if  __name__ == '__main__':
     with open(os.path.join(sampling_datapath, f'{args.strategy}_pool.json'), 'w') as f:
         json.dump(sample_pool, f, indent=4)
 
-    # wandb.finish()
+    if args.wandb:
+        # wandb.save(os.path.join(sampling_datapath, f'{args.strategy}_pool.json'))
+        wandb.finish()
