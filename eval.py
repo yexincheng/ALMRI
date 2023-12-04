@@ -137,5 +137,5 @@ if  __name__ == '__main__':
     plt.xlabel('Number of samples')
     plt.ylabel('Dice coefficient')
     plt.title(f'{args.base_model} {args.task} {args.strategy} epochs{args.num_epochs} sampling')
-    plt.savefig(f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_sampling.png')
+    plt.savefig(os.path.join('figures/eval', f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_sampling.png'))
     plt.close()

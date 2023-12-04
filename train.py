@@ -73,7 +73,7 @@ if  __name__ == '__main__':
         )
 
     for i in range(len(training_pool)):
-        sample_pool, training_pool = random_sampling(training_pool)
+        sample_pool, training_pool = random_sampling(training_pool, sample_pool)
 
         num_samples = len(sample_pool)
         if num_samples > 2 and num_samples <= 5:
@@ -135,7 +135,7 @@ if  __name__ == '__main__':
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         # plt.show() # comment this line if you are running on a server
-        plt.savefig(os.path.join(save_path_ckp, f'sam_{args.sam_model_type}_{num_samples:02d}_train_loss.png'))
+        plt.savefig(os.path.join(save_path_ckp, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_train_loss.png'))
         plt.close()
 
     with open(os.path.join(sampling_datapath, f'{args.strategy}_pool.json'), 'w') as f:

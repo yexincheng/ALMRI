@@ -18,4 +18,6 @@ module load gnu/5.4.0
 source activate medsam
 # wandb login 4aaa2e71cdec13a78a42c6ceac38dd0c7235a131
 # wandb login --relogin
-srun python train.py --num_epochs 100
+srun python train.py --base_model MedSAM \
+    --checkpoint ./checkpoints/MedSAM/medsam_20230423_vit_b_0.0.1.pth \
+    --num_epochs 100
