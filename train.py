@@ -123,11 +123,11 @@ if  __name__ == '__main__':
             if args.wandb:
                 wandb.log({f"Train/loss of {num_samples} num sample": epoch_loss})
             # save the latest model checkpoint
-            torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'sam_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
+            torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
             # save the best model
             if epoch_loss < best_loss:
                 best_loss = epoch_loss
-                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'sam_{args.sam_model_type}_{num_samples:02d}_best.pth'))
+                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_best.pth'))
 
         # plot loss
         plt.plot(losses)
@@ -135,10 +135,10 @@ if  __name__ == '__main__':
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         # plt.show() # comment this line if you are running on a server
-        plt.savefig(os.path.join(save_path_ckp, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_train_loss.png'))
+        plt.savefig(os.path.join(save_path_ckp_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_train_loss.png'))
         plt.close()
 
-    with open(os.path.join(sampling_datapath, f'{args.strategy}_pool.json'), 'w') as f:
+    with open(os.path.join(sampling_datapath, f'{args.strategy}_{args.num_epochs}_pool.json'), 'w') as f:
         json.dump(sample_pool, f, indent=4)
 
     if args.wandb:
