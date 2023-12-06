@@ -20,4 +20,6 @@ source activate medsam
 # wandb login --relogin
 srun python train.py --task MRI_LeftKidney \
     --label_id 1 \
+    --base_model MedSAM \
+    --checkpoint ./checkpoints/MedSAM/medsam_20230423_vit_b_0.0.1.pth
     --num_epochs 100
