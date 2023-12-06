@@ -13,5 +13,5 @@ module load cuda/10.0.130
 module load gnu/5.4.0
 
 source activate medsam
-srun python pre_embeddings.py -task MRI_LeftKidney \
+srun python pre_embeddings.py --task MRI_LeftKidney \
     --label_id 1

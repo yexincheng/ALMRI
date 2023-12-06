@@ -18,4 +18,6 @@ module load gnu/5.4.0
 source activate medsam
 # wandb login 4aaa2e71cdec13a78a42c6ceac38dd0c7235a131
 # wandb offline
-srun python eval.py --base_model MedSAM --num_epochs 100 
+srun python eval.py --task MRI_LeftKidney \
+    --label_id 1 \
+    --num_epochs 150 
