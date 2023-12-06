@@ -138,5 +138,5 @@ if __name__ == '__main__':
             img_idx[bd, :] = [255, 0, 0]
             io.imsave(save_path_tr + '.png', img_idx, check_contrast=False)
 
-    with open(os.path.join(save_path_ts, 'sub_index.json'), 'w') as f:
+    with open(os.path.join(save_path_tr, 'sub_index.json'), 'w') as f:
         json.dump(sub_index, f, indent=4)
