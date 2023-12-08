@@ -74,6 +74,7 @@ if  __name__ == '__main__':
     parser.add_argument('--sam_model_type', type=str, default='vit_b', help='SAM model type')
     parser.add_argument('--num_epochs', type=int, default=50)
     parser.add_argument('--wandb', type=bool, default=False, help='log to wandb')
+    parser.add_argument('--mode', type=str, default='eval', help='mode: eval or train')
     args = parser.parse_args()
 
     save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
@@ -137,5 +138,5 @@ if  __name__ == '__main__':
     plt.xlabel('Number of samples')
     plt.ylabel('Dice coefficient')
     plt.title(f'{args.base_model} {args.task} {args.strategy} epochs{args.num_epochs} sampling')
-    plt.savefig(os.path.join('figures/eval', f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_sampling.png'))
+    plt.savefig(os.path.join(f'figures/{args.mode}', f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_sampling.png'))
     plt.close()
