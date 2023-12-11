@@ -1,6 +1,37 @@
 import numpy as np
 from torch.utils.data import Dataset
 import torch
+import SimpleITK as sitk
+import os
+from datasets import path
+import json
+import skimage
+
+def save_preds_nii(id, prefix, task, mode, preds, save_path):
+    # load image and gt
+    img = sitk.ReadImage(os.path.join(path.RAINE_ORGAN_IMAGES_51, f'{id}.FatImaging_W.nii.gz'))
+    img_array = sitk.GetArrayFromImage(img)
+    original_shape = img_array.shape
+    # gt = sitk.ReadImage(os.path.join(path.RAINE_ORGAN_MANUAL_GTS_51, f'{id}.FatImaging_W.nii.gz'))
+    # gt_array = sitk.GetArrayFromImage(gt)
+
+    with open(os.path.join(prefix, task, mode, 'sub_index.json'), 'r') as f:
+        sub_index = json.load(f)
+    label_index = sub_index[f'{id}.FatImaging_W.nii.gz']
+
+    ori_zeros = np.zeros(original_shape)
+    # resize prediction to original size
+    preds_resized = skimage.transform.resize(preds, (preds.shape[0], original_shape[1], original_shape[2]), order=0, preserve_range=True, mode='constant', anti_aliasing=True)
+    # print(preds_resized.shape)
+    ori_zeros[label_index] += preds_resized
+    # print(ori_zeros.shape)
+
+    # save prediction
+    result_image = sitk.GetImageFromArray(ori_zeros)
+    result_image.CopyInformation(img)
+    # write the image
+    sitk.WriteImage(result_image, os.path.join(save_path, f'{id}.FatImaging_W.nii.gz'))
+    return ori_zeros, img_array
 
 def min_max_norm_3dimg(img):
     """Min-max normalization [0, 1] for 3D image
