@@ -8,7 +8,7 @@ from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
 from metrics import compute_dice_coefficient
 import wandb
-from utils import NpzDataset
+from utils import NpzDataset, save_preds_nii
 from torch.utils.data import DataLoader
 import argparse
 
@@ -78,6 +78,8 @@ if  __name__ == '__main__':
     args = parser.parse_args()
 
     save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
+    save_nii_path = os.path.join('datasets/predictions', f'{args.task}_{args.base_model}_{args.sam_model_type}_{args.strategy}', f'epochs{args.num_epochs}', args.mode)
+    os.makedirs(save_nii_path, exist_ok=True)
     # device 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     ckp_paths = sorted(glob(os.path.join(save_path_ckp, f'epochs{args.num_epochs}', '*latest.pth')))
@@ -125,6 +127,8 @@ if  __name__ == '__main__':
             if '40' in p and args.wandb:
                 preds_int = preds * 1 # convert boolean to int
                 log_image_table(imgs, preds_int, gts, id, dice, table)
+            if '40' in p:
+                ori_zeros, img_array = save_preds_nii(id, args.prefix, args.task, args.mode, preds, save_nii_path)
         dice_test.append(np.mean(avg_dice))
         if args.wandb:
             wandb.log({f"Eval/Dice {args.strategy} epoch{args.num_epochs}": np.mean(avg_dice)}, commit=True)
