@@ -74,14 +74,14 @@ if  __name__ == '__main__':
     parser.add_argument('--sam_model_type', type=str, default='vit_b', help='SAM model type')
     parser.add_argument('--num_epochs', type=int, default=50)
     parser.add_argument('--wandb', type=bool, default=False, help='log to wandb')
-    parser.add_argument('--mode', type=str, default='eval', help='mode: eval or train')
+    parser.add_argument('--mode', type=str, default='test', help='mode: eval or train')
     args = parser.parse_args()
 
     save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
     # device 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     ckp_paths = sorted(glob(os.path.join(save_path_ckp, f'epochs{args.num_epochs}', '*latest.pth')))
-    testing_pool_path = os.path.join(args.prefix, args.task, 'test')
+    testing_pool_path = os.path.join(args.prefix, args.task, args.mode)
     testing_pool = glob(os.path.join(testing_pool_path, '*.npz'))
     dice_test = []
 
