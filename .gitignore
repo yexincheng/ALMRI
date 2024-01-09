@@ -2,6 +2,7 @@ datasets*
 __pycache__
 *nii*
 checkpoints*
+results*
 
 # ipython/jupyter notebooks
 **/.ipynb_checkpoints/
