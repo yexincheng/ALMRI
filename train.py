@@ -30,6 +30,7 @@ if  __name__ == '__main__':
     parser.add_argument('--checkpoint', type=str, default='./checkpoints/SAM/sam_vit_b_01ec64.pth', help='SAM checkpoint for fine tunning')
     parser.add_argument('--num_epochs', type=int, default=50, help='number of epochs for fine tunning')
     parser.add_argument('--wandb', type=bool, default=False, help='log to wandb')
+    parser.add_argument('--seed', type=int, default=2023, help='random seed')
     args = parser.parse_args()
     # device 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -52,8 +53,8 @@ if  __name__ == '__main__':
     # Set up the optimizer, hyperparameter tuning will improve performance here
     optimizer = torch.optim.Adam(sam_model.mask_decoder.parameters(), lr=1e-5, weight_decay=0)
     seg_loss = monai.losses.DiceCELoss(sigmoid=True, squared_pred=True, reduction='mean')
-    save_path_ckp_epoch = os.path.join(save_path_ckp, f'epochs{args.num_epochs}')
-    os.makedirs(save_path_ckp_epoch, exist_ok=True)
+    save_path_ckp_seed_epoch = os.path.join(save_path_ckp, f'seed{args.seed}', f'epochs{args.num_epochs}')
+    os.makedirs(save_path_ckp_seed_epoch, exist_ok=True)
 
     # wandb
     if args.wandb:
@@ -73,7 +74,7 @@ if  __name__ == '__main__':
         )
 
     for i in range(len(training_pool)):
-        sample_pool, training_pool = random_sampling(training_pool, sample_pool)
+        sample_pool, training_pool = random_sampling(training_pool, sample_pool, args.seed)
 
         num_samples = len(sample_pool)
         if num_samples > 2 and num_samples <= 5:
@@ -123,22 +124,24 @@ if  __name__ == '__main__':
             if args.wandb:
                 wandb.log({f"Train/loss of {num_samples} num sample": epoch_loss})
             # save the latest model checkpoint
-            torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
+            torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
             # save the best model
             if epoch_loss < best_loss:
                 best_loss = epoch_loss
-                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_best.pth'))
-
+                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_best.pth'))
+        
+        # save loss
+        np.save(os.path.join('results/loss', f'{args.strategy}_{args.base_model}_{args.sam_model_type}_{num_samples:02d}_{args.seed}_train_loss.npy'), np.array(losses))
         # plot loss
         plt.plot(losses)
         plt.title('Dice + Cross Entropy Loss')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         # plt.show() # comment this line if you are running on a server
-        plt.savefig(os.path.join(save_path_ckp_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_train_loss.png'))
+        plt.savefig(os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_train_loss.png'))
         plt.close()
 
-    with open(os.path.join(sampling_datapath, f'{args.strategy}_{args.num_epochs}_pool.json'), 'w') as f:
+    with open(os.path.join(sampling_datapath, f'{args.strategy}_{args.num_epochs}_{args.seed}pool.json'), 'w') as f:
         json.dump(sample_pool, f, indent=4)
 
     if args.wandb:
