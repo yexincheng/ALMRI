@@ -4,8 +4,8 @@
 #SBATCH --ntasks 1
 #SBATCH -c 30
 #SBATCH --mem=50000
-#SBATCH -o embedding_out.txt
-#SBATCH -e embedding_error.txt
+#SBATCH -o results/logs/embedding_out.txt
+#SBATCH -e results/logs/embedding_error.txt
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
