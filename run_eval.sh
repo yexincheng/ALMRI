@@ -20,4 +20,5 @@ source activate medsam
 # wandb offline
 srun python eval.py --task MRI_LeftKidney \
     --label_id 1 \
-    --num_epochs 150 
+    --num_epochs 100 \
+    --seed 2020

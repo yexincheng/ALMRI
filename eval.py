@@ -74,15 +74,20 @@ if  __name__ == '__main__':
     parser.add_argument('--sam_model_type', type=str, default='vit_b', help='SAM model type')
     parser.add_argument('--num_epochs', type=int, default=50)
     parser.add_argument('--wandb', type=bool, default=False, help='log to wandb')
-    parser.add_argument('--mode', type=str, default='test', help='mode: eval or train')
+    parser.add_argument('--mode', type=str, default='test', help='mode: test or train')
+    parser.add_argument('--seed', type=int, default=2023, help='random seed')
     args = parser.parse_args()
 
     save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
-    save_nii_path = os.path.join('datasets/predictions', f'{args.task}_{args.base_model}_{args.sam_model_type}_{args.strategy}', f'epochs{args.num_epochs}', args.mode)
+    save_nii_path = os.path.join('datasets/predictions', f'{args.task}_{args.base_model}_{args.sam_model_type}_{args.strategy}', f'seed{args.seed}', f'epochs{args.num_epochs}', args.mode)
     os.makedirs(save_nii_path, exist_ok=True)
     # device 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    ckp_paths = sorted(glob(os.path.join(save_path_ckp, f'epochs{args.num_epochs}', '*latest.pth')))
+    if args.strategy == 'random':
+        ckp_paths = sorted(glob(os.path.join(save_path_ckp, f'seed{args.seed}', f'epochs{args.num_epochs}', '*latest.pth')))
+    else:
+        ckp_paths = sorted(glob(os.path.join(save_path_ckp, f'epochs{args.num_epochs}', '*latest.pth')))
+
     testing_pool_path = os.path.join(args.prefix, args.task, args.mode)
     testing_pool = glob(os.path.join(testing_pool_path, '*.npz'))
     dice_test = []
@@ -136,11 +141,13 @@ if  __name__ == '__main__':
         wandb.log({f"predictions_table {args.strategy} epoch{args.num_epochs}":table}, commit=True)
         wandb.finish()
 
+    # save dice
+    np.save(os.path.join('results/dice', f'{args.strategy}_{args.task}_{args.base_model}_{args.sam_model_type}_epochs{args.num_epochs}_seed{args.seed}_train_loss.npy'), dice_test)
     # plot dice curve
     # x = list(range(len(dice_test)))
     plt.plot(dice_test)
     plt.xlabel('Number of samples')
     plt.ylabel('Dice coefficient')
-    plt.title(f'{args.base_model} {args.task} {args.strategy} epochs{args.num_epochs} sampling')
-    plt.savefig(os.path.join(f'figures/{args.mode}', f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_sampling.png'))
+    plt.title(f'{args.base_model} {args.task} {args.strategy} epochs{args.num_epochs} seed{args.seed} sampling')
+    plt.savefig(os.path.join(f'figures/{args.mode}', f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_seed{args.seed}_sampling.png'))
     plt.close()
