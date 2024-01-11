@@ -104,10 +104,11 @@ if __name__ == '__main__':
     # set up the model
     sam_model = sam_model_registry[args.sam_model_type](checkpoint=args.checkpoint).to(device)
     sub_index = {}
+    # TODO: add a loop to process the test dataset
 
     # preprocess the training dataset
     # outliers: sub-14870, sub-16880, sub-22770, sub-41810, sub-52220
-    for name in tqdm(train_names):
+    for name in tqdm(test_names):
         img_path = os.path.join(path.RAINE_ORGAN_IMAGES_51, name)
         gt_path = os.path.join(path.RAINE_ORGAN_MANUAL_GTS_51, name)
         # load image and gt
@@ -138,5 +139,5 @@ if __name__ == '__main__':
             img_idx[bd, :] = [255, 0, 0]
             io.imsave(save_path_tr + '.png', img_idx, check_contrast=False)
 
-    with open(os.path.join(save_path_tr, 'sub_index.json'), 'w') as f:
+    with open(os.path.join(save_path_ts, 'sub_index.json'), 'w') as f:
         json.dump(sub_index, f, indent=4)
