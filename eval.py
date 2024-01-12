@@ -142,7 +142,8 @@ if  __name__ == '__main__':
         wandb.finish()
 
     # save dice
-    np.save(os.path.join('results/dice', f'{args.strategy}_{args.task}_{args.base_model}_{args.sam_model_type}_epochs{args.num_epochs}_seed{args.seed}_train_loss.npy'), dice_test)
+    sace_path_dice = os.makedirs(os.path.join('results/dice', f'epochs{args.epochs}'), exist_ok=True)
+    np.save(os.path.join(sace_path_dice, f'{args.strategy}_{args.task}_{args.base_model}_{args.sam_model_type}_epochs{args.num_epochs}_seed{args.seed}_{args.mode}_dice.npy'), dice_test)
     # plot dice curve
     # x = list(range(len(dice_test)))
     plt.plot(dice_test)

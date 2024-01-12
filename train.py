@@ -131,7 +131,8 @@ if  __name__ == '__main__':
                 torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_best.pth'))
         
         # save loss
-        np.save(os.path.join('results/loss', f'{args.strategy}_{args.base_model}_{args.sam_model_type}_{num_samples:02d}_{args.seed}_train_loss.npy'), np.array(losses))
+        sace_path_loss = os.makedirs(os.path.join('results/loss', f'epochs{args.epochs}'), exist_ok=True)
+        np.save(os.path.join(sace_path_loss, f'{args.strategy}_{args.base_model}_{args.sam_model_type}_{num_samples:02d}_{args.seed}_train_loss.npy'), np.array(losses))
         # plot loss
         plt.plot(losses)
         plt.title('Dice + Cross Entropy Loss')
