@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --nodes 1
-#SBATCH --job-name=sam_random2020
+#SBATCH --job-name=sam_e150random2024
 #SBATCH --ntasks 1
 #SBATCH -c 30
 #SBATCH --mem=50000
-#SBATCH -o results/logs/sam_random2020_out.txt
-#SBATCH -e results/logs/sam_random2020_error.txt
+#SBATCH -o results/logs/sam_e150random2024_out.txt
+#SBATCH -e results/logs/sam_e150random2024_error.txt
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
@@ -22,5 +22,5 @@ srun python train.py --task MRI_LeftKidney \
     --label_id 1 \
     --base_model SAM \
     --checkpoint ./checkpoints/SAM/sam_vit_b_01ec64.pth \
-    --num_epochs 100 \
-    --seed 2020
+    --num_epochs 150 \
+    --seed 2024
