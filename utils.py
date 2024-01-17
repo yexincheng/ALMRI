@@ -93,3 +93,22 @@ class NpzDataset(Dataset):
         bboxes = np.array([0, 0, gt2D.shape[1], gt2D.shape[0]])
         # convert img embedding, mask, bounding box to torch tensor
         return torch.tensor(img_embed).float(), torch.tensor(gt2D[None, :,:]).long(), torch.tensor(bboxes).float()
+
+# create a dataset class to load npz data and return back image and ground truth
+class NpzDataset2(Dataset): 
+    def __init__(self, sample_pool_path):
+        self.npz_files = sorted(sample_pool_path) 
+        # print(self.npz_files[0])
+        self.npz_data = [np.load(f) for f in self.npz_files]
+        self.ori_imgs = np.vstack([d['imgs'] for d in self.npz_data])
+        self.ori_gts = np.vstack([d['gts'] for d in self.npz_data])
+        # print(f"{self.oti_imgs.shape=}, {self.ori_gts.shape=}")
+    
+    def __len__(self):
+        return self.ori_gts.shape[0]
+
+    def __getitem__(self, index):
+        img_embed = self.img_embeddings[index]
+        gt2D = self.ori_gts[index]
+        # convert img embedding, mask, bounding box to torch tensor
+        return torch.tensor(img_embed).float(), torch.tensor(gt2D[None, :,:]).long()
