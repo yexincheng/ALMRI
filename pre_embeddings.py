@@ -75,6 +75,7 @@ if __name__ == '__main__':
     parser.add_argument('--sam_model_type', type=str, default='vit_b', help='SAM model type')
     parser.add_argument('--checkpoint', type=str, default='./checkpoints/SAM/sam_vit_b_01ec64.pth', help='SAM checkpoint for fine tunning')
     parser.add_argument('--image_size', type=int, default=256, help='image size')
+    parser.add_argument('--mode', type=str, default='train', help='train or test')
     args = parser.parse_args()
     # label id
     # left kidney: 1,
@@ -94,21 +95,21 @@ if __name__ == '__main__':
     np.random.shuffle(names)
     train_names = sorted(names[:int(len(names)*0.8)]) # 40
     test_names = sorted(names[int(len(names)*0.8):]) # 11
+    if args.mode == 'train':
+        ds_names = train_names
+    elif args.mode == 'test':
+        ds_names = test_names
     # prepare the save path
-    save_path_tr = os.path.join(args.prefix, args.task, 'train')
-    save_path_ts = os.path.join(args.prefix, args.task, 'test')
-    # save data ti train nad test folder
-    os.makedirs(save_path_tr, exist_ok=True)
-    os.makedirs(save_path_ts, exist_ok=True)
+    save_path = os.path.join(args.prefix, args.task, args.mode)
+    os.makedirs(save_path, exist_ok=True)
 
     # set up the model
     sam_model = sam_model_registry[args.sam_model_type](checkpoint=args.checkpoint).to(device)
     sub_index = {}
-    # TODO: add a loop to process the test dataset
 
-    # preprocess the training dataset
-    # outliers: sub-14870, sub-16880, sub-22770, sub-41810, sub-52220
-    for name in tqdm(test_names):
+    # preprocess the dataset
+    # outliers: sub-12400, sub-14870, sub-16880, sub-22770, sub-41810, sub-52220
+    for name in tqdm(ds_names):
         img_path = os.path.join(path.RAINE_ORGAN_IMAGES_51, name)
         gt_path = os.path.join(path.RAINE_ORGAN_MANUAL_GTS_51, name)
         # load image and gt
@@ -130,14 +131,14 @@ if __name__ == '__main__':
             gts = np.stack(gts, axis=0) # (n, 256, 256)
             img_embeddings = np.stack(img_embeddings, axis=0) # (n, 1, 256, 64, 64)
             print(name, 'imgs shape', imgs.shape, '\tgts shape', gts.shape)
-            np.savez_compressed(os.path.join(save_path_tr, name.split('.nii.gz')[0]+'.npz'), imgs=imgs, gts=gts, img_embeddings=img_embeddings)
+            np.savez_compressed(os.path.join(save_path, name.split('.nii.gz')[0]+'.npz'), imgs=imgs, gts=gts, img_embeddings=img_embeddings)
             # save an example image for sanity check
             idx = np.random.randint(0, imgs.shape[0])
             img_idx = imgs[idx,:,:,:]
             gt_idx = gts[idx,:,:]
             bd = segmentation.find_boundaries(gt_idx, mode='inner')
             img_idx[bd, :] = [255, 0, 0]
-            io.imsave(save_path_tr + '.png', img_idx, check_contrast=False)
+            io.imsave(save_path + '.png', img_idx, check_contrast=False)
 
-    with open(os.path.join(save_path_ts, 'sub_index.json'), 'w') as f:
+    with open(os.path.join(save_path, 'sub_index.json'), 'w') as f:
         json.dump(sub_index, f, indent=4)
