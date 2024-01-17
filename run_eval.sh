@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --nodes 1
-#SBATCH --job-name=infer_sam_random2022
+#SBATCH --job-name=infer_sam_e150_random2024
 #SBATCH --ntasks 1
 #SBATCH -c 30
 #SBATCH --mem=50000
-#SBATCH -o results/logs/infer_sam_random2022_out.txt
-#SBATCH -e results/logs/infer_sam_random2022_error.txt
+#SBATCH -o results/logs/infer_sam_e150_random2024_out.txt
+#SBATCH -e results/logs/infer_sam_e150_random2024_error.txt
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
@@ -20,5 +20,5 @@ source activate medsam
 # wandb offline
 srun python eval.py --task MRI_LeftKidney \
     --label_id 1 \
-    --num_epochs 100 \
-    --seed 2022
+    --num_epochs 150 \
+    --seed 2024
