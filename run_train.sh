@@ -9,6 +9,7 @@
 #SBATCH --partition=gpu_cuda
 #SBATCH --gres=gpu:1
 #sbatch --account=a_barth
+#sbatch --time=12
 
 module load cuda/11.7.0
 # module load gnu/5.4.0
