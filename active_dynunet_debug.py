@@ -97,9 +97,9 @@ def get_pre_transforms(labels, spatial_size):
         NormalizeLabelsInDatasetd(keys="label", label_names=labels),
         CenterSpatialCropd(keys=["image", "label"],roi_size=spatial_size),
         # Transforms for click simulation
-        FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),	
-        AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-        AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
+        # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),	
+        # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
+        # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
         #
         ToTensord(keys=("image", "label")),
     ]
@@ -227,13 +227,13 @@ def create_trainer(args, sample_pool_nii):
         max_epochs=args.num_epochs,
         train_data_loader=train_loader,
         network=network,
-        iteration_update=Interaction(
-            deepgrow_probability=args.deepgrow_probability_train,
-            transforms=click_transforms,
-            click_probability_key="probability",
-            train=True,
-            label_names=args.labels,
-        ),
+        # iteration_update=Interaction(
+        #     deepgrow_probability=args.deepgrow_probability_train,
+        #     transforms=click_transforms,
+        #     click_probability_key="probability",
+        #     train=True,
+        #     label_names=args.labels,
+        # ),
         optimizer=optimizer,
         loss_function=loss_function,
         inferer=SimpleInferer(),
