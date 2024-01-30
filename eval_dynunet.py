@@ -36,6 +36,10 @@ from monai.data import Dataset, DataLoader, decollate_batch
 from monai.networks.nets import DynUNet
 from monai.handlers.utils import from_engine
 import numpy as np
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import SimpleITK as sitk
+from metrics import compute_dice_coefficient
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -130,47 +134,84 @@ def get_network(labels, number_intensity_ch):
 	return model
 
 def data_load(args, pre_transforms):
-	images = sorted(glob(os.path.join(args.dataDir, '*.nii.gz')))
+	testing_pool_path = os.path.join(args.prefix, args.task, args.mode)
+	testing_pool = glob(os.path.join(testing_pool_path, '*.npz'))
+	testing_pool_nii = [(os.path.basename(sample).split('.npz')[0]+'.nii.gz') for sample in testing_pool]
+	imagelist = sorted([os.path.join(args.prefix, 'trainingset_51', image_name) for image_name in testing_pool_nii])
 
-	imagesd = [{'image':i} for i in images]
+	# images = sorted(glob(os.path.join(args.dataDir, '*.nii.gz')))
+
+	imagesd = [{'image':i} for i in imagelist]
 	images_ds = Dataset(data=imagesd, transform=pre_transforms)
 	images_loader = DataLoader(images_ds, batch_size=1,shuffle=False)
 
-	return images_loader, images
+	return images_loader, imagelist
 
 def infer(args):
-	device = torch.device("cuda" if args.use_gpu else "cpu")
-	if not os.path.exists(args.saveDir):
-		print("Save directory [{}] does not exist. creating it now.".format(args.saveDir))
-		os.makedirs(args.saveDir, exist_ok=True)
 
-	#print(device)
+
+	save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy, f'seed{args.seed}', f'epochs{args.num_epochs}')
+	ckp_pool = sorted(glob(os.path.join(save_path_ckp, '*latest.pth')))
+	print(save_path_ckp)
+	print('Number of checkpoints: ', len(ckp_pool))
+	save_nii_path = os.path.join('datasets/predictions', f'{args.task}_{args.base_model}_{args.strategy}', f'seed{args.seed}', f'epochs{args.num_epochs}', args.mode)
+	os.makedirs(save_nii_path, exist_ok=True)
+
+
+	device = torch.device("cuda" if args.use_gpu else "cpu")
 	pre_transforms = get_pre_transforms(args.labels, args.spatial_size, args.number_intensity_ch)
 	post_transforms = get_post_transforms(pre_transforms)
 
-	dataloader, images = data_load(args, pre_transforms)
+	dataloader, imagelist = data_load(args, pre_transforms)
 	#print(len(dataloader))
-
+	dice_test = []
 	network = get_network(args.labels, args.number_intensity_ch)
-	network.load_state_dict(torch.load(args.checkpoint))
-	network.to(device)
-	network.eval()
-	with torch.no_grad():
-		print('Strat infering ')
-		for ii,i in enumerate(dataloader):
-			original_affine = i["image_meta_dict"]["affine"][0,:,:].numpy()
-			# print(original_affine.shape)
-			name = os.path.split(images[ii])[1]
-			print(name)
-			input = i["image"].to(device)
-		
-			i['pred'] = network(input)[0]
-			i['image'] = i['image'][0]  
-			#i = pre_transforms.inverse(i)
-			i = post_transforms(i)
-			nib.save(
-				    nib.Nifti1Image(i['pred'].astype(np.uint8), original_affine), os.path.join(args.saveDir, name)
-				)
+	for p in tqdm(ckp_pool):
+		print('running checkpoint', p)
+		avg_dice = []
+		network.load_state_dict(torch.load(p))
+		network.to(device)
+		network.eval()
+		with torch.no_grad():
+			print('Strat infering ')
+			for ii,i in enumerate(dataloader):
+				original_affine = i["image_meta_dict"]["affine"][0,:,:].numpy()
+				# print(original_affine.shape)
+				name = os.path.split(imagelist[ii])[1]
+				print(name)
+				gt_path = os.path.join(args.prefix, 'trainingset_51', 'labels/final', name)
+				gt = sitk.ReadImage(gt_path)
+				gt_array = sitk.GetArrayFromImage(gt)
+				gt_array = np.transpose(np.uint8(gt_array==args.label_id),(2,1,0))
+				
+				input = i["image"].to(device)
+			
+				i['pred'] = network(input)[0]
+				i['image'] = i['image'][0]  
+				#i = pre_transforms.inverse(i)
+				i = post_transforms(i)
+				print('shapes', i['pred'].astype(np.uint8).shape, gt_array.shape)
+				print('types', i['pred'].astype(np.uint8).dtype, gt_array.dtype, 'unique', np.unique(i['pred'].astype(np.uint8)), np.unique(gt_array))
+				dice = compute_dice_coefficient(gt_array, i['pred'].astype(np.uint8))
+				avg_dice.append(dice)
+				if '40' in p:
+					nib.save(
+							nib.Nifti1Image(i['pred'].astype(np.uint8), original_affine), os.path.join(save_nii_path, name)
+						)
+			dice_test.append(np.mean(avg_dice))
+				
+	# save dice
+	save_path_dice = os.path.join('results/dice', f'epochs{args.num_epochs}')
+	os.makedirs(save_path_dice, exist_ok=True)
+	np.save(os.path.join(save_path_dice, 
+					  f'{args.strategy}_{args.task}_{args.base_model}_epochs{args.num_epochs}_seed{args.seed}_{args.mode}_dice.npy'), dice_test)
+    # plot dice curve
+	plt.plot(dice_test)
+	plt.xlabel('Number of samples')
+	plt.ylabel('Dice coefficient')
+	plt.title(f'{args.base_model} {args.task} {args.strategy} epochs{args.num_epochs} seed{args.seed} sampling')
+	plt.savefig(os.path.join(f'figures/{args.mode}', f'{args.base_model}_{args.task}_{args.strategy}_epochs{args.num_epochs}_seed{args.seed}_sampling.png'))
+	plt.close()
 
 def strtobool(val):
     return bool(distutils.util.strtobool(val))
@@ -179,9 +220,6 @@ def strtobool(val):
 def main():
 	
 	parser = argparse.ArgumentParser()
-	parser.add_argument("-d", "--dataDir", help="Directory of the data")
-	parser.add_argument("-s", "--saveDir", default=None, help="Directory to save the prediction results")
-	parser.add_argument("-c", "--checkpoint", default="/scratch/itee/uqxye5/2023-01-organSeg/deepedit_model/pretrained_deepedit_dynunet-final.pt")
 	parser.add_argument("-g", "--use_gpu", type=strtobool, default="true")
 	parser.add_argument("--size", nargs=3, type=int)
 	
@@ -189,7 +227,11 @@ def main():
 	parser.add_argument('--task', type=str, default='MRI_Pancreas', help='task name')
 	parser.add_argument('--strategy', type=str, default='random', help='sampling strategy')
 	parser.add_argument('--base_model', type=str, default='DynUNet', help='base model name')
+	parser.add_argument('--label_id', type=int, default=3, help='label id')
 	parser.add_argument('--seed', type=int, default=2023, help='random seed')
+	parser.add_argument('--num_epochs', type=int, default=100)
+	parser.add_argument('--mode', type=str, default='test', help='mode: test or train')
+
 	args = parser.parse_args()
 	args.labels = {
 		"left kidney": 1,
