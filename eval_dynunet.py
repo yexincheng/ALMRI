@@ -190,8 +190,8 @@ def infer(args):
 				i['image'] = i['image'][0]  
 				#i = pre_transforms.inverse(i)
 				i = post_transforms(i)
-				print('shapes', i['pred'].astype(np.uint8).shape, gt_array.shape)
-				print('types', i['pred'].astype(np.uint8).dtype, gt_array.dtype, 'unique', np.unique(i['pred'].astype(np.uint8)), np.unique(gt_array))
+				# print('shapes', i['pred'].astype(np.uint8).shape, gt_array.shape)
+				# print('types', i['pred'].astype(np.uint8).dtype, gt_array.dtype, 'unique', np.unique(i['pred'].astype(np.uint8)), np.unique(gt_array))
 				dice = compute_dice_coefficient(gt_array, i['pred'].astype(np.uint8))
 				avg_dice.append(dice)
 				if '40' in p:
