@@ -1,11 +1,11 @@
 #!/bin/bash --login
 #SBATCH --nodes 1
-#SBATCH --job-name=DynUNet_e100random2020
+#SBATCH --job-name=DynUNet_e100random2024
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task=50
 #SBATCH --mem=50G
-#SBATCH -o results/logs/DynUNet_e100random2020_out.txt
-#SBATCH -e results/logs/DynUNet_e100random2020_error.txt
+#SBATCH -o results/logs/DynUNet_e100random2024_out.txt
+#SBATCH -e results/logs/DynUNet_e100random2024_error.txt
 #SBATCH --partition=gpu_cuda
 #SBATCH --gres=gpu:a100:1
 #SBTACH --account=a_barth
@@ -23,4 +23,4 @@ srun python active_dynunet.py --size 192 192 96 \
     --num_epochs 100 \
     --task MRI_LeftKidney \
     --base_model DynUNet\
-    --seed 2020 
+    --seed 2024 
