@@ -42,6 +42,7 @@ dependencies:
   - ncurses=6.4=h6a678d5_0
   - nest-asyncio=1.5.6=py310h06a4308_0
   - openssl=1.1.1t=h7f8727e_0
+  - packaging=23.1=py310h06a4308_0
   - parso=0.8.3=pyhd3eb1b0_0
   - pcre2=10.37=he7ceb23_1
   - perl=5.34.0=h5eee18b_2
@@ -108,10 +109,10 @@ dependencies:
       - nvidia-cusparse-cu11==11.7.4.91
       - nvidia-nccl-cu11==2.14.3
       - nvidia-nvtx-cu11==11.7.91
-      - packaging==23.1
       - pillow==9.5.0
       - protobuf==4.25.0
       - pyparsing==3.0.9
+      - pytorch-ignite==0.4.13
       - pywavelets==1.4.1
       - pyyaml==6.0.1
       - requests==2.30.0
@@ -132,4 +133,5 @@ dependencies:
       - typing-extensions==4.5.0
       - urllib3==2.0.2
       - wandb==0.16.0
-prefix: /scratch/itee/uqxye5/anaconda/envs/medsam
+      - wrapt==1.16.0
+prefix: /mnt/miniconda/envs/medsam
