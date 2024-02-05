@@ -78,7 +78,7 @@ if  __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=2023, help='random seed')
     args = parser.parse_args()
 
-    save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
+    save_path_ckp = os.path.join('/scratch/project/bollmann_lab/xincheng/segmentation/ALMRI/checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
     save_nii_path = os.path.join('datasets/predictions', f'{args.task}_{args.base_model}_{args.sam_model_type}_{args.strategy}', f'seed{args.seed}', f'epochs{args.num_epochs}', args.mode)
     os.makedirs(save_nii_path, exist_ok=True)
     # device 
