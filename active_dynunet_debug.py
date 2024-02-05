@@ -88,11 +88,11 @@ def get_pre_transforms(labels, spatial_size):
         LoadImaged(keys=("image", "label"), reader="ITKReader"),
         EnsureChannelFirstd(keys=("image", "label")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
-        # RandFlipd(keys=("image", "label"), spatial_axis=[0], prob=0.10),
-        # RandFlipd(keys=("image", "label"), spatial_axis=[1], prob=0.10),
-        # RandFlipd(keys=("image", "label"), spatial_axis=[2], prob=0.10),
-        # RandRotate90d(keys=("image", "label"), prob=0.10, max_k=3),
-        # RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
+        RandFlipd(keys=("image", "label"), spatial_axis=[0], prob=0.10),
+        RandFlipd(keys=("image", "label"), spatial_axis=[1], prob=0.10),
+        RandFlipd(keys=("image", "label"), spatial_axis=[2], prob=0.10),
+        RandRotate90d(keys=("image", "label"), prob=0.10, max_k=3),
+        RandShiftIntensityd(keys="image", offsets=0.10, prob=0.50),
 
         NormalizeLabelsInDatasetd(keys="label", label_names=labels),
         CenterSpatialCropd(keys=["image", "label"],roi_size=spatial_size),
@@ -145,10 +145,10 @@ def get_loaders(args, nii_pool, pre_transforms):
 
 
     # data path datasets/RAINE_organ_51/trainingset_51/
-    # imagelist = [os.path.join(args.prefix, 'trainingset_51', image_name) for image_name in nii_pool]
-    # labellist = [os.path.join(args.prefix, 'trainingset_51', 'labels', 'final', image_name) for image_name in nii_pool]
-    imagelist = glob(os.path.join(args.prefix, 'trainingset_51', '*.nii.gz'))
-    labellist = glob(os.path.join(args.prefix, 'trainingset_51', 'labels', 'final', '*.nii.gz'))
+    imagelist = [os.path.join(args.prefix, 'trainingset_51', image_name) for image_name in nii_pool]
+    labellist = [os.path.join(args.prefix, 'trainingset_51', 'labels', 'final', image_name) for image_name in nii_pool]
+    # imagelist = glob(os.path.join(args.prefix, 'trainingset_51', '*.nii.gz'))
+    # labellist = glob(os.path.join(args.prefix, 'trainingset_51', 'labels', 'final', '*.nii.gz'))
     print('len(imagelist)', len(imagelist), 'len(labellist)', len(labellist))
     datalist = [{"image": image_name, "label": label_name} for image_name, label_name in zip(imagelist, labellist)]
     print(datalist[-1])
