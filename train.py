@@ -36,7 +36,7 @@ if  __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # active learning fine tunning checkpoint
-    save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
+    save_path_ckp = os.path.join('/scratch/project/bollmann_lab/xincheng/segmentation/ALMRI/checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy)
     os.makedirs(save_path_ckp, exist_ok=True)
     # sampling dataset path
     sampling_datapath = os.path.join(args.prefix, args.task, args.base_model+'_sampling')
