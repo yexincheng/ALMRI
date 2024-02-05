@@ -5,3 +5,4 @@ chmod +x miniconda.sh
 rm miniconda.sh
 $HOME/miniconda3/bin/conda init bash
 $HOME/miniconda3/bin/conda init zsh
+# source ~/.bashrc
