@@ -256,7 +256,7 @@ def run(args):
         trainer = create_trainer(args, sample_pool_nii)
 
         start_time = time.time()
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
 
         #os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
         trainer.run()

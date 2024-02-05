@@ -22,5 +22,5 @@ source activate medsam
 srun python active_dynunet.py --size 192 192 96 \
     --num_epochs 100 \
     --task MRI_LeftKidney \
-    --base_model DynUNet\
+    --base_model DynUNet_nocache\
     --seed 2024 
