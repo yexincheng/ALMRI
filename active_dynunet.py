@@ -64,14 +64,13 @@ import json
 from strategy import random_sampling
 import numpy as np
 import matplotlib.pyplot as plt
-from ignite.engine import _prepare_batch
 
 
 def get_network(labels):
     # Network
     network = DynUNet(
         spatial_dims=3,
-        in_channels=len(labels) + 1,
+        in_channels=len(labels),
         out_channels=len(labels),
         kernel_size=[3, 3, 3, 3, 3, 3],
         strides=[1, 2, 2, 2, 2, [2, 2, 1]],
@@ -97,34 +96,34 @@ def get_pre_transforms(labels, spatial_size):
         NormalizeLabelsInDatasetd(keys="label", label_names=labels),
         CenterSpatialCropd(keys=["image", "label"],roi_size=spatial_size),
         # Transforms for click simulation
-        FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),	
-        AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-        AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
+        # FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),	
+        # AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
+        # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
         #
         ToTensord(keys=("image", "label")),
     ]
 
     return Compose(t)
 
-def get_click_transforms():
-    t = [
-        Activationsd(keys="pred", softmax=True),
-        AsDiscreted(keys="pred", argmax=True),
-        ToNumpyd(keys=("image", "label", "pred")),
-        # Transforms for click simulation
-        FindDiscrepancyRegionsDeepEditd(keys="label", pred="pred", discrepancy="discrepancy"),
-        AddRandomGuidanceDeepEditd(
-            keys="NA",
-            guidance="guidance",
-            discrepancy="discrepancy",
-            probability="probability",
-        ),
-        AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
-        #
-        ToTensord(keys=("image", "label")),
-    ]
+# def get_click_transforms():
+#     t = [
+#         Activationsd(keys="pred", softmax=True),
+#         AsDiscreted(keys="pred", argmax=True),
+#         ToNumpyd(keys=("image", "label", "pred")),
+#         # Transforms for click simulation
+#         FindDiscrepancyRegionsDeepEditd(keys="label", pred="pred", discrepancy="discrepancy"),
+#         AddRandomGuidanceDeepEditd(
+#             keys="NA",
+#             guidance="guidance",
+#             discrepancy="discrepancy",
+#             probability="probability",
+#         ),
+#         AddGuidanceSignalDeepEditd(keys="image", guidance="guidance"),
+#         #
+#         ToTensord(keys=("image", "label")),
+#     ]
 
-    return Compose(t)
+#     return Compose(t)
 
 
 def get_post_transforms(labels):
@@ -156,88 +155,13 @@ def get_loaders(args, nii_pool, pre_transforms):
     else:
         batch_size = 3
 
-    # Check the length of the elements in datalist
-    # for data in datalist:
-    #     print(len(data["image"]), len(data["label"]))
-
-    # # Check the output of pre_transforms
-    # for data in datalist:
-    #     transformed = pre_transforms(data)
-    #     print(transformed["image"].shape, transformed["label"].shape)
-
     print('len(nii_pool)', len(nii_pool), '\tbatch_size', batch_size)
     train_ds = PersistentDataset(datalist, pre_transforms, cache_dir=args.cache_dir)
     # 'sids' incompatible with batch size > 1
-    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available())
     logging.info("Total Records used for Training is: {}/{}".format(len(train_ds), total_l))
 
     return train_loader
-
-def prepare_batch(batch, device=None, non_blocking=False):
-    return _prepare_batch((batch["image"], batch["label"]), device, non_blocking)
-
-def create_trainer(args, sample_pool_nii):
-
-    set_determinism(seed=args.seed)
-
-    device = torch.device("cuda" if args.use_gpu else "cpu")
-
-    pre_transforms = get_pre_transforms(args.labels, args.spatial_size)
-    click_transforms = get_click_transforms()
-    post_transform = get_post_transforms(args.labels)
-
-    train_loader = get_loaders(args, sample_pool_nii, pre_transforms)
-
-    # define training components
-    network = get_network(args.labels).to(device)
-    if args.resume:
-        logging.info("Loading Network...")
-        # map_location = {"cuda:0": "cuda:{}".format(local_rank)}
-        network.load_state_dict(torch.load(args.model_filepath))
-
-    loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
-    optimizer = torch.optim.Adam(network.parameters(), args.learning_rate)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.1)
-
-    train_handlers = [
-        LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
-        # ValidationHandler(validator=evaluator, interval=args.val_freq, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=from_engine(["loss"], first=True)),
-
-    ]
-
-    all_train_metrics = dict()
-    all_train_metrics["train_dice"] = MeanDice(
-        output_transform=from_engine(["pred", "label"]), include_background=False
-    )
-    for key_label in args.labels:
-        if key_label != "background":
-            all_train_metrics[key_label + "_dice"] = MeanDice(
-                output_transform=from_engine(["pred_" + key_label, "label_" + key_label]), include_background=False
-            )
-
-    trainer = SupervisedTrainer(
-        device=device,
-        max_epochs=args.num_epochs,
-        train_data_loader=train_loader,
-        network=network,
-        iteration_update=Interaction(
-            deepgrow_probability=args.deepgrow_probability_train,
-            transforms=click_transforms,
-            click_probability_key="probability",
-            train=True,
-            label_names=args.labels,
-        ),
-        optimizer=optimizer,
-        loss_function=loss_function,
-        prepare_batch=prepare_batch,
-        inferer=SimpleInferer(),
-        postprocessing=post_transform,
-        amp=args.amp,
-        key_train_metric=all_train_metrics,
-        train_handlers=train_handlers,
-    )
-    return trainer
 
 
 def run(args):
@@ -247,50 +171,74 @@ def run(args):
     training_pool = glob(os.path.join(training_pool_path, '*.npz'))
     sample_pool = []
     
+    device = torch.device("cuda" if args.use_gpu else "cpu")
+
+    pre_transforms = get_pre_transforms(args.labels, args.spatial_size)
+    post_transform = get_post_transforms(args.labels)
+
+    # define training components
+    network = get_network(args.labels).to(device)
+    if args.resume:
+        logging.info("Loading Network...")
+        # map_location = {"cuda:0": "cuda:{}".format(local_rank)}
+        network.load_state_dict(torch.load(args.model_filepath))
+    network.train()
+
+    loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
+    optimizer = torch.optim.Adam(network.parameters(), args.learning_rate)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.1)
+
+    losses = []
     for i in range(len(training_pool)):
         sample_pool, training_pool = random_sampling(training_pool, sample_pool, args.seed)
         num_samples = len(sample_pool)
         # base name sample list
         sample_pool_nii = [(os.path.basename(sample).split('.npz')[0]+'.nii.gz') for sample in sample_pool]
-
-       
-        trainer = create_trainer(args, sample_pool_nii)
+        train_loader = get_loaders(args, sample_pool_nii, pre_transforms)
 
         start_time = time.time()
-        # torch.cuda.empty_cache()
+        for epoch in range(args.num_epochs):
+            epoch_loss = 0
+            for data in train_loader: # sample_pool# 'image', 'label', 'image_meta_dict', 'label_meta_dict', 'label_names'
+                imgs, gts = data["image"].repeat(1, 2, 1, 1, 1).to(device), data["label"].to(device)
+                print(imgs.shape, gts.shape)
+                optimizer.zero_grad()
+                net_out = network(imgs)
+                loss = loss_function(net_out, gts)
+                loss.backward()
+                optimizer.step()
+                lr_scheduler.step()
+                epoch_loss += loss.item()
+            epoch_loss /= len(train_loader)
+            end_time = time.time()
+            losses.append(epoch_loss)
+            logging.info("Epoch {} Loss: {:.4f}".format(epoch, epoch_loss))
+            logging.info("Total Training Time {}".format(end_time - start_time))
+            save_path_ckp_seed_epoch =  os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy, f'seed{args.seed}', f'epochs{args.num_epochs}')
+            os.makedirs(save_path_ckp_seed_epoch, exist_ok=True)
+            torch.save(
+                network.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{num_samples:02d}_latest.pth')
+            )
 
-        #os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
-        trainer.run()
-        end_time = time.time()
+            if not args.multi_gpu:
+                model_ts = torch.jit.script(network)
+                torch.jit.save(model_ts, os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{num_samples:02d}_latest.ts'))
 
-        logging.info("Total Training Time {}".format(end_time - start_time))
-        save_path_ckp_seed_epoch =  os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy, f'seed{args.seed}', f'epochs{args.num_epochs}')
-        os.makedirs(save_path_ckp_seed_epoch, exist_ok=True)
-        torch.save(
-            trainer.network.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{num_samples:02d}_latest.pth')
-        )
-        if not args.multi_gpu:
-            model_ts = torch.jit.script(trainer.network)
-            torch.jit.save(model_ts, os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{num_samples:02d}_latest.ts'))
-
-        if args.multi_gpu:
-            dist.destroy_process_group()
+            if args.multi_gpu:
+                dist.destroy_process_group()
 
         # save loss
-        # print(trainer.state.metrics.keys())
-        # print(len(trainer.state.metrics), trainer.state.metrics['train_loss'])
-        # losses = [stat["train_loss"] for stat in trainer.state.metrics]
-        # save_path_loss = os.path.join('results/loss', f'epochs{args.num_epochs}')
-        # os.makedirs(save_path_loss, exist_ok=True)
-        # np.save(os.path.join(save_path_loss, f'{args.strategy}_{args.base_model}_{num_samples:02d}_{args.seed}_train_loss.npy'), np.array(losses))
-        # # plot loss
-        # plt.plot(losses)
-        # plt.title('Dice + Cross Entropy Loss')
-        # plt.xlabel('Epoch')
-        # plt.ylabel('Loss')
-        # # plt.show() # comment this line if you are running on a server
-        # plt.savefig(os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{num_samples:02d}_train_loss.png'))
-        # plt.close()
+        save_path_loss = os.path.join('results/loss', f'epochs{args.num_epochs}')
+        os.makedirs(save_path_loss, exist_ok=True)
+        np.save(os.path.join(save_path_loss, f'{args.strategy}_{args.base_model}_{num_samples:02d}_{args.seed}_train_loss.npy'), np.array(losses))
+        # plot loss
+        plt.plot(losses)
+        plt.title('Dice + Cross Entropy Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        # plt.show() # comment this line if you are running on a server
+        plt.savefig(os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{num_samples:02d}_train_loss.png'))
+        plt.close()
 
     # save sample pool as json
     sampling_datapath = os.path.join(args.prefix, args.task, args.base_model+'_sampling')
