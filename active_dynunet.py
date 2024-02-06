@@ -167,6 +167,7 @@ def get_loaders(args, nii_pool, pre_transforms):
 
     print('len(nii_pool)', len(nii_pool), '\tbatch_size', batch_size)
     train_ds = PersistentDataset(datalist, pre_transforms, cache_dir=args.cache_dir)
+    # 'sids' incompatible with batch size > 1
     train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4, collate_fn=list_data_collate, pin_memory=torch.cuda.is_available())
     logging.info("Total Records used for Training is: {}/{}".format(len(train_ds), total_l))
 
