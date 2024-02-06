@@ -126,9 +126,9 @@ if  __name__ == '__main__':
             # save the latest model checkpoint
             torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_latest.pth'))
             # save the best model
-            if epoch_loss < best_loss:
-                best_loss = epoch_loss
-                torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_best.pth'))
+            # if epoch_loss < best_loss:
+            #     best_loss = epoch_loss
+            #     torch.save(sam_model.state_dict(), os.path.join(save_path_ckp_seed_epoch, f'{args.base_model}_{args.sam_model_type}_{num_samples:02d}_best.pth'))
         
         # save loss
         save_path_loss = os.path.join('results/loss', f'epochs{args.num_epochs}')
