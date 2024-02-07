@@ -98,8 +98,8 @@ def get_pre_transforms(labels, spatial_size, number_intensity_ch):
 		    AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=labels),
 		    CenterSpatialCropd(keys="image", roi_size=spatial_size),
             #Resized(keys="image", spatial_size=spatial_size, mode="area"),
-		    ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
-		    AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=number_intensity_ch),
+		    # ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+		    # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=number_intensity_ch),
 		    EnsureTyped(keys="image")
 		]
 	)
@@ -122,7 +122,7 @@ def get_post_transforms(pre_transforms):
 def get_network(labels, number_intensity_ch):
 	model = DynUNet(
 		spatial_dims=3,
-		in_channels=len(labels) + number_intensity_ch, 
+		in_channels=len(labels), 
 		out_channels=len(labels), 
 		kernel_size=[3, 3, 3, 3, 3, 3],
 		strides=[1, 2, 2, 2, 2, [2, 2, 1]],
@@ -184,7 +184,7 @@ def infer(args):
 				gt_array = sitk.GetArrayFromImage(gt)
 				gt_array = np.transpose(np.uint8(gt_array==args.label_id),(2,1,0))
 				
-				input = i["image"].to(device)
+				input = i["image"].repeat(1, 2, 1, 1, 1).to(device)
 			
 				i['pred'] = network(input)[0]
 				i['image'] = i['image'][0]  

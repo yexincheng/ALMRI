@@ -21,6 +21,7 @@ source activate medsam
 # wandb offline
 srun python eval_dynunet.py --size 192 192 96 \
     --task MRI_LeftKidney \
+    --base_model DynUNet_nocache\
     --label_id 1\
     --num_epochs 100 \
     --seed 2020
