@@ -14,7 +14,7 @@ from utils import min_max_norm_3dimg
 import json
 
 # preprocess the dataset
-def sam_preprocess(img, gt, image_size, sam_model, device):
+def sam_preprocess(args, img, gt, image_size, sam_model, device):
     """Resize image and ground truth to 256*256, and get the image embedding
     Args:
         img: 3D image
@@ -35,7 +35,7 @@ def sam_preprocess(img, gt, image_size, sam_model, device):
     for i in range(index):
         gt_slice_i = gt[i,:,:]
         gt_slice_i = transform.resize(gt_slice_i, (image_size, image_size), order=0, preserve_range=True, mode='constant', anti_aliasing=True)
-        if np.sum(gt_slice_i)>3: # select slice containing organ
+        if np.sum(gt_slice_i)>args.filter: # select slice containing organ
             img_slice_i = img[i,:,:]
             label_index.append(i)
             # resize img_slice_i to 256x256
@@ -76,6 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', type=str, default='./checkpoints/SAM/sam_vit_b_01ec64.pth', help='SAM checkpoint for fine tunning')
     parser.add_argument('--image_size', type=int, default=256, help='image size')
     parser.add_argument('--mode', type=str, default='train', help='train or test')
+    parser.add_argument('--filter', type=int, default=3, help='filter for selecting slice containing organ')
     args = parser.parse_args()
     # label id
     # left kidney: 1,
