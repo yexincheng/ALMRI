@@ -48,6 +48,7 @@ def min_max_norm_3dimg(img):
     return img_norm
 
 def roi_bbox(gt2D):
+    '''Returns a bounding box from a mask region of interest (ROI)'''
     y_indices, x_indices = np.where(gt2D > 0)
     x_min, x_max = np.min(x_indices), np.max(x_indices)
     y_min, y_max = np.min(y_indices), np.max(y_indices)
@@ -61,19 +62,8 @@ def roi_bbox(gt2D):
     return bbox
 
 def get_bbox_from_mask(mask):
-    '''Returns a bounding box from a mask'''
-    # y_indices, x_indices = np.where(mask > 0)
-    # x_min, x_max = np.min(x_indices), np.max(x_indices)
-    # y_min, y_max = np.min(y_indices), np.max(y_indices)
-    # # add perturbation to bounding box coordinates
-    # H, W = mask.shape
-    # np.random.seed(2023)
-    # x_min = max(0, x_min - np.random.randint(0, 20))
-    # x_max = min(W, x_max + np.random.randint(0, 20))
-    # y_min = max(0, y_min - np.random.randint(0, 20))
-    # y_max = min(H, y_max + np.random.randint(0, 20))
+    '''Returns a bounding box from a mask size'''
     bbox = np.array([0, 0, mask.shape[1], mask.shape[0]])
-    # return np.array([x_min, y_min, x_max, y_max])
     return bbox
 
 # create a dataset class to load npz data and return back image embeddings and ground truth
@@ -107,21 +97,3 @@ class NpzDataset(Dataset):
         # convert img embedding, mask, bounding box to torch tensor
         return torch.tensor(img_embed).float(), torch.tensor(gt2D[None, :,:]).long(), torch.tensor(bboxes).float()
 
-# create a dataset class to load npz data and return back image and ground truth
-class NpzDataset2(Dataset): 
-    def __init__(self, sample_pool_path):
-        self.npz_files = sorted(sample_pool_path) 
-        # print(self.npz_files[0])
-        self.npz_data = [np.load(f) for f in self.npz_files]
-        self.ori_imgs = np.vstack([d['imgs'] for d in self.npz_data])
-        self.ori_gts = np.vstack([d['gts'] for d in self.npz_data])
-        # print(f"{self.oti_imgs.shape=}, {self.ori_gts.shape=}")
-    
-    def __len__(self):
-        return self.ori_gts.shape[0]
-
-    def __getitem__(self, index):
-        img_embed = self.img_embeddings[index]
-        gt2D = self.ori_gts[index]
-        # convert img embedding, mask, bounding box to torch tensor
-        return torch.tensor(img_embed).float(), torch.tensor(gt2D[None, :,:]).long()
