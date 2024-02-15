@@ -13,8 +13,18 @@ from tqdm import tqdm
 from utils import min_max_norm_3dimg
 import json
 
+def get_slice(array, index, i):
+    """    Get the slice of the 3D array from different viewa"""
+    x, y, z = array.shape
+    if index == x:
+        return array[i,:,:]
+    elif index == y:
+        return array[:,i,:]
+    elif index == z:
+        return array[:,:,i]
+
 # preprocess the dataset
-def sam_preprocess(args, img, gt, image_size, sam_model, device):
+def sam_preprocess(filter, view, img, gt, image_size, sam_model, device):
     """Resize image and ground truth to 256*256, and get the image embedding
     Args:
         img: 3D image
@@ -30,16 +40,16 @@ def sam_preprocess(args, img, gt, image_size, sam_model, device):
     imgs = []
     gts = []
     img_embeddings = []
-    index = img.shape[0]
+    index = img.shape[view]
     label_index = []
     for i in range(index):
-        gt_slice_i = gt[i,:,:]
+        gt_slice_i = get_slice(gt, index, i)
         gt_slice_i = transform.resize(gt_slice_i, (image_size, image_size), order=0, preserve_range=True, mode='constant', anti_aliasing=True)
-        if np.sum(gt_slice_i)>args.filter: # select slice containing organ
-            img_slice_i = img[i,:,:]
+        if np.sum(gt_slice_i)>=filter: # select slice containing organ
+            img_slice_i = get_slice(img, index, i)
             label_index.append(i)
             # resize img_slice_i to 256x256
-            img_slice_i = transform.resize(img[i,:,:], (image_size, image_size), order=3, preserve_range=True, mode='constant', anti_aliasing=True)
+            img_slice_i = transform.resize(img_slice_i, (image_size, image_size), order=3, preserve_range=True, mode='constant', anti_aliasing=True)
             # convert to three channels
             img_slice_i = np.uint8(np.repeat(img_slice_i[:,:,None], 3, axis=-1))
             assert len(img_slice_i.shape)==3 and img_slice_i.shape[2]==3, 'image should be 3 channels'
@@ -60,7 +70,7 @@ def sam_preprocess(args, img, gt, image_size, sam_model, device):
                     embedding = sam_model.image_encoder(input_image)
                     img_embeddings.append(embedding.cpu().numpy()[0])
 
-    print('label_index', label_index)
+    # print('label_index', label_index)
     if sam_model is not None:
         return imgs, gts, img_embeddings, label_index
     else:
@@ -77,6 +87,7 @@ if __name__ == '__main__':
     parser.add_argument('--image_size', type=int, default=256, help='image size')
     parser.add_argument('--mode', type=str, default='train', help='train or test')
     parser.add_argument('--filter', type=int, default=3, help='filter for selecting slice containing organ')
+    parser.add_argument('--view', type=int, default=0, help='0 for axial, 1 for coronal, 2 for sagittal')
     args = parser.parse_args()
     # label id
     # left kidney: 1,
@@ -124,14 +135,14 @@ if __name__ == '__main__':
         img_norm = min_max_norm_3dimg(img_array) 
 
         # preprocess the image and gt for SAM
-        imgs, gts, img_embeddings, label_index = sam_preprocess(img_norm, gt_array, args.image_size, sam_model, device)
+        imgs, gts, img_embeddings, label_index = sam_preprocess(args.filter, args.view, img_norm, gt_array, args.image_size, sam_model, device)
         sub_index[name] = label_index
         # stack the list to array then save to npz file
         if len(imgs)>1:
             imgs = np.stack(imgs, axis=0) # (n, 256, 256, 3)
             gts = np.stack(gts, axis=0) # (n, 256, 256)
             img_embeddings = np.stack(img_embeddings, axis=0) # (n, 1, 256, 64, 64)
-            print(name, 'imgs shape', imgs.shape, '\tgts shape', gts.shape)
+            print(name, 'imgs shape', imgs.shape, '\tgts shape', gts.shape, '\timg_embeddings shape', img_embeddings.shape)
             np.savez_compressed(os.path.join(save_path, name.split('.nii.gz')[0]+'.npz'), imgs=imgs, gts=gts, img_embeddings=img_embeddings)
             # save an example image for sanity check
             idx = np.random.randint(0, imgs.shape[0])
