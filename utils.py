@@ -130,13 +130,14 @@ class NpzDataset(Dataset):
         return torch.tensor(img_embed).float(), torch.tensor(gt2D[None, :,:]).long(), torch.tensor(bboxes).float()
 
 class NpzDataset_roi(Dataset): 
-    def __init__(self, sample_pool_path):
+    def __init__(self, sample_pool_path, seed):
         self.npz_files = sorted(sample_pool_path) 
         # print(self.npz_files[0])
         self.npz_data = [np.load(f) for f in self.npz_files]
         self.ori_gts = np.vstack([d['gts'] for d in self.npz_data])
         self.img_embeddings = np.vstack([d['img_embeddings'] for d in self.npz_data])
         # print(f"{self.img_embeddings.shape=}, {self.ori_gts.shape=}")
+        self.seed = seed
     
     def __len__(self):
         return self.ori_gts.shape[0]
@@ -149,6 +150,7 @@ class NpzDataset_roi(Dataset):
         y_min, y_max = np.min(y_indices), np.max(y_indices)
         # add perturbation to bounding box coordinates
         H, W = gt2D.shape
+        np.random.seed(self.seed)
         x_min = max(0, x_min - np.random.randint(0, 20))
         x_max = min(W, x_max + np.random.randint(0, 20))
         y_min = max(0, y_min - np.random.randint(0, 20))
