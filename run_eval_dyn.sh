@@ -9,6 +9,7 @@
 #SBATCH --partition=gpu_cuda
 #SBATCH --gres=gpu:a100:1
 #SBTACH --account=a_barth
+#SBATCH --time=34:00:00
 
 module load cuda
 # module load gnu/5.4.0
@@ -21,7 +22,8 @@ source activate medsam
 # wandb offline
 srun python eval_dynunet.py --size 192 192 96 \
     --task MRI_LeftKidney \
-    --base_model DynUNet_nocache\
+    --base_model DynUNet \
     --label_id 1\
     --num_epochs 100 \
-    --seed 2020
+    --seed 2024 \
+    --root /QRISdata/Q2653/data/2023-11-16-sam-activelearning
