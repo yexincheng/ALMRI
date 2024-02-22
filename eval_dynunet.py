@@ -98,8 +98,8 @@ def get_pre_transforms(labels, spatial_size, number_intensity_ch):
 		    AddGuidanceFromPointsDeepEditd(ref_image="image", guidance="guidance", label_names=labels),
 		    CenterSpatialCropd(keys="image", roi_size=spatial_size),
             #Resized(keys="image", spatial_size=spatial_size, mode="area"),
-		    # ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
-		    # AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=number_intensity_ch),
+		    ResizeGuidanceMultipleLabelDeepEditd(guidance="guidance", ref_image="image"),
+		    AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=number_intensity_ch),
 		    EnsureTyped(keys="image")
 		]
 	)
@@ -122,7 +122,7 @@ def get_post_transforms(pre_transforms):
 def get_network(labels, number_intensity_ch):
 	model = DynUNet(
 		spatial_dims=3,
-		in_channels=len(labels), 
+		in_channels=len(labels) + number_intensity_ch, 
 		out_channels=len(labels), 
 		kernel_size=[3, 3, 3, 3, 3, 3],
 		strides=[1, 2, 2, 2, 2, [2, 2, 1]],
@@ -149,14 +149,15 @@ def data_load(args, pre_transforms):
 
 def infer(args):
 
-
-	save_path_ckp = os.path.join('./checkpoints/', args.base_model + '_' + args.task + '_' + args.strategy, f'seed{args.seed}', f'epochs{args.num_epochs}')
+	save_path_ckp = os.path.join(args.root, 'checkpoints', args.base_model + '_' + args.task + '_' + args.strategy, f'seed{args.seed}', f'epochs{args.num_epochs}')
 	ckp_pool = sorted(glob(os.path.join(save_path_ckp, '*latest.pth')))
 	print(save_path_ckp)
 	print('Number of checkpoints: ', len(ckp_pool))
 	save_nii_path = os.path.join('datasets/predictions', f'{args.task}_{args.base_model}_{args.strategy}', f'seed{args.seed}', f'epochs{args.num_epochs}', args.mode)
 	os.makedirs(save_nii_path, exist_ok=True)
-
+	
+	save_path_dice = os.path.join('results/dice', f'epochs{args.num_epochs}')
+	os.makedirs(save_path_dice, exist_ok=True)
 
 	device = torch.device("cuda" if args.use_gpu else "cpu")
 	pre_transforms = get_pre_transforms(args.labels, args.spatial_size, args.number_intensity_ch)
@@ -166,7 +167,7 @@ def infer(args):
 	#print(len(dataloader))
 	dice_test = []
 	network = get_network(args.labels, args.number_intensity_ch)
-	for p in tqdm(ckp_pool):
+	for j, p in enumerate(tqdm(ckp_pool)):
 		print('running checkpoint', p)
 		avg_dice = []
 		network.load_state_dict(torch.load(p))
@@ -184,7 +185,8 @@ def infer(args):
 				gt_array = sitk.GetArrayFromImage(gt)
 				gt_array = np.transpose(np.uint8(gt_array==args.label_id),(2,1,0))
 				
-				input = i["image"].repeat(1, 2, 1, 1, 1).to(device)
+				# input = i["image"].repeat(1, 2, 1, 1, 1).to(device)
+				input = i["image"].to(device)
 			
 				i['pred'] = network(input)[0]
 				i['image'] = i['image'][0]  
@@ -198,11 +200,11 @@ def infer(args):
 					nib.save(
 							nib.Nifti1Image(i['pred'].astype(np.uint8), original_affine), os.path.join(save_nii_path, name)
 						)
+			np.save(os.path.join(save_path_dice, 
+					  f'{args.strategy}_{args.task}_{args.base_model}_epochs{args.num_epochs}_seed{args.seed}_{args.mode}_{j+1}samples_dice.npy'), avg_dice)
 			dice_test.append(np.mean(avg_dice))
 				
 	# save dice
-	save_path_dice = os.path.join('results/dice', f'epochs{args.num_epochs}')
-	os.makedirs(save_path_dice, exist_ok=True)
 	np.save(os.path.join(save_path_dice, 
 					  f'{args.strategy}_{args.task}_{args.base_model}_epochs{args.num_epochs}_seed{args.seed}_{args.mode}_dice.npy'), dice_test)
     # plot dice curve
@@ -222,7 +224,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-g", "--use_gpu", type=strtobool, default="true")
 	parser.add_argument("--size", nargs=3, type=int)
-	
+	parser.add_argument('--root', type=str, default='./', help='root path for checkpoints')
 	parser.add_argument('--prefix', type=str, default='./datasets/RAINE_organ_51', help='dataset path prefix')
 	parser.add_argument('--task', type=str, default='MRI_Pancreas', help='task name')
 	parser.add_argument('--strategy', type=str, default='random', help='sampling strategy')
