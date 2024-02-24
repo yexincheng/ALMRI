@@ -185,6 +185,7 @@ def bbox_vote_infer(vote_mask_preds, view, mode, index, sam_model, device, seed)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--output_dir', type=str, default='results/dice/bbox_regression')
     parser.add_argument('--checkpoint', type=str, default='checkpoints/SAM/sam_vit_b_01ec64.pth')
     parser.add_argument('--mode', type=str, default='test')
     parser.add_argument('--task', type=str, default='MRI_LeftKidney_3views_label')
@@ -240,9 +241,9 @@ if __name__ == '__main__':
         pred_final = majority_voting(pred_axial_ori, pred_sagittal_ori, pred_coronal_ori)
         dice_final = compute_dice_coefficient(original_gtarray, pred_final)
         dices_final.append(dice_final)
-        
-    np.save(os.path.join('./results/dice/bbox_regression', f'{args.mode}_vote_upsampled_3views_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_final)   
-    np.save(os.path.join('./results/dice/bbox_regression', f'{args.mode}_vote_upsampled_axial_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_axial)
-    np.save(os.path.join('./results/dice/bbox_regression', f'{args.mode}_vote_upsampled_sagittal_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_sagittal)
-    np.save(os.path.join('./results/dice/bbox_regression', f'{args.mode}_vote_upsampled_coronal_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_coronal)
+
+    np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_3views_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_final)   
+    np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_axial_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_axial)
+    np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_sagittal_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_sagittal)
+    np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_coronal_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_coronal)
 

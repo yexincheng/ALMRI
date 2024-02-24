@@ -3,10 +3,12 @@
 source activate medsam
 
 cust_func(){
-    python eval_bbox_regression.py --num $num --sseed 2024
+    python eval_bbox_regression.py --num $num --sseed 2024 \
+        --checkpoint checkpoints/MedSAM/medsam_20230423_vit_b_0.0.1.pth \
+        --output_dir results/dice/bbox_regression_medsam
 }
 
-for num in {11..20}
+for num in {1..10}
 do
     cust_func $num & # Put a function in the background
     sleep 2
