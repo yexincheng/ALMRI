@@ -3,6 +3,7 @@ datasets*
 *nii*
 checkpoints*
 results*
+figures*
 
 # ipython/jupyter notebooks
 **/.ipynb_checkpoints/
