@@ -28,17 +28,17 @@ def majority_voting(array1, array2, array3):
 
 def resize2origin(pred_axial, pred_sagittal, pred_coronal, original_shape, mode, id):
     pred_axial_resized = np.array([cv2.resize(p, (original_shape[2], original_shape[1]), interpolation=cv2.INTER_NEAREST) for p in pred_axial], dtype=np.uint8)
-    view = 'MRI_LeftKidney_axial'
+    view = 'MRI_LeftKidney_axial_all'
     ori_zeros = np.zeros(original_shape, dtype=np.uint8)
     pred_axial_ori = transform_to_original(ori_zeros, mode, view, id, pred_axial_resized)
 
     pred_sagittal_resized = np.array([cv2.resize(p, (original_shape[1], original_shape[0]), interpolation=cv2.INTER_NEAREST) for p in pred_sagittal], dtype=np.uint8)
-    view = 'MRI_LeftKidney_sagittal'
+    view = 'MRI_LeftKidney_sagittal_all'
     ori_zeros = np.zeros((original_shape[2], original_shape[0], original_shape[1]), dtype=np.uint8)
     pred_sagittal_ori = transform_to_original(ori_zeros, mode, view, id, pred_sagittal_resized).transpose(1, 2, 0)
 
     pred_coronal_resized = np.array([cv2.resize(p, (original_shape[2], original_shape[0]), interpolation=cv2.INTER_NEAREST) for p in pred_coronal], dtype=np.uint8)
-    view = 'MRI_LeftKidney_coronal'
+    view = 'MRI_LeftKidney_coronal_all'
     ori_zeros = np.zeros((original_shape[1], original_shape[0], original_shape[2]), dtype=np.uint8)
     pred_coronal_ori = transform_to_original(ori_zeros, mode, view, id, pred_coronal_resized).transpose(1, 0, 2)
 
