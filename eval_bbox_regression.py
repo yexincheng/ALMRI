@@ -20,7 +20,7 @@ import skimage
 import SimpleITK as sitk
 from metrics import compute_dice_coefficient
 
-def upsampled_vote(bbox_model, index, mode, original_shape):
+def upsampled_vote(bbox_model, index, mode, original_shape, mask_vote=True):
     axial_view = 'MRI_LeftKidney_axial'
     sagittal_view = 'MRI_LeftKidney_sagittal'
     coronal_view = 'MRI_LeftKidney_coronal'
@@ -82,13 +82,15 @@ def upsampled_vote(bbox_model, index, mode, original_shape):
         mask_preds_axial.append(mask_pred_l_axial)    
 
         # gts_downsampled.append(cv2.resize(gt_axial, dsize=(64, 64), interpolation=cv2.INTER_NEAREST))
-
     mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = resize2origin(mask_preds_axial, mask_preds_sagittal, mask_preds_coronal, original_shape, mode, id)
-    start_time = time.time()
-    vote_mask_preds = majority_voting(mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori)
-    end_time = time.time()
-    print(f'{id} Voting time: {end_time - start_time}')
-    return vote_mask_preds
+    if mask_vote:
+        start_time = time.time()
+        vote_mask_preds = majority_voting(mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori)
+        end_time = time.time()
+        print(f'{id} Voting time: {end_time - start_time}')
+        return vote_mask_preds
+    else:
+        return mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori
 
 def bbox_vote_infer(vote_mask_preds, view, mode, index, sam_model, device, seed):
 
@@ -109,7 +111,7 @@ def bbox_vote_infer(vote_mask_preds, view, mode, index, sam_model, device, seed)
         vote_mask_preds_roi = vote_mask_preds[:,:,label_index]
     bboxes = []
     preds = []
-    for j, (img, emb, gt, _) in enumerate(zip(imgs, embeddings, gts, vote_mask_preds_roi)):    # (256, 64, 64) (256, 256)
+    for j, (img, emb, gt) in enumerate(zip(imgs, embeddings, gts)):    # (256, 64, 64) (256, 256)
         
         if 'axial' in view:
             mask_j = vote_mask_preds_roi[j]
@@ -192,6 +194,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_samples', type=int, default=40)
     parser.add_argument('--bseed', type=int, default=2023, help='random seed for bbox jitter')
     parser.add_argument('--sseed', type=int, default=2023, help='random seed for random sample')
+    parser.add_argument('--mask_vote', action='store_true', default=False)
+    parser.add_argument('--pred_vote', action='store_true', default=False)
     args = parser.parse_args()
    
     bbox_model = pickle.load(open(f'checkpoints/bbox_regression/{args.task}_{args.num_samples}samples_seed{args.sseed}.pkl', 'rb'))
@@ -209,6 +213,7 @@ if __name__ == '__main__':
     dices_axial = []
     dices_sagittal = []
     dices_coronal = []
+    print(f'Mask vote {args.mask_vote}, Pred vote {args.pred_vote}, Mode {args.mode}, Num samples {args.num_samples}, Bseed {args.bseed}, Sseed {args.sseed}')
     for i in tqdm(range(len(id_set))):
         
         id = id_set[i]
@@ -219,30 +224,45 @@ if __name__ == '__main__':
         original_gtarray = np.uint8(original_gtarray==1)
         original_shape = original_gtarray.shape
 
-        if os.path.exists(os.path.join('datasets/vote_mask_preds/', f'{id}_3views_{args.num_samples}samples.npy')):
-            vote_mask_preds = np.load(os.path.join('datasets/vote_mask_preds/', f'{id}_3views_{args.num_samples}samples.npy'))
+        if args.mask_vote:
+            if os.path.exists(os.path.join('datasets/vote_mask_preds/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy')):
+                vote_mask_preds = np.load(os.path.join('datasets/vote_mask_preds/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'))
+            else:
+                vote_mask_preds = upsampled_vote(bbox_model, i, args.mode, original_shape, args.mask_vote)
+                np.save(os.path.join('datasets/vote_mask_preds/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'), vote_mask_preds)
+
+            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_axial', args.mode, i, sam_model, device, args.bseed)
+            dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
+            dices_axial.append(dice_axial)
+
+            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_sagittal', args.mode, i, sam_model, device, args.bseed)
+            dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
+            dices_sagittal.append(dice_sagittal)
+
+            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_coronal', args.mode, i, sam_model, device, args.bseed)
+            dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
+            dices_coronal.append(dice_coronal)
         else:
-            vote_mask_preds = upsampled_vote(bbox_model, i, args.mode, original_shape)
-            np.save(os.path.join('datasets/vote_mask_preds/', f'{id}_3views_40samples.npy'), vote_mask_preds)
+            mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = upsampled_vote(bbox_model, i, args.mode, original_shape, args.mask_vote)
+            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(mask_preds_axial_ori, 'MRI_LeftKidney_axial', args.mode, i, sam_model, device, args.bseed)
+            dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
+            dices_axial.append(dice_axial)
 
-        preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_axial', args.mode, i, sam_model, device, args.bseed)
-        dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
-        dices_axial.append(dice_axial)
+            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(mask_preds_sagittal_ori, 'MRI_LeftKidney_sagittal', args.mode, i, sam_model, device, args.bseed)
+            dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
+            dices_sagittal.append(dice_sagittal)
 
-        preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_sagittal', args.mode, i, sam_model, device, args.bseed)
-        dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
-        dices_sagittal.append(dice_sagittal)
-
-        preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_coronal', args.mode, i, sam_model, device, args.bseed)
-        dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
-        dices_coronal.append(dice_coronal)
+            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(mask_preds_coronal_ori, 'MRI_LeftKidney_coronal', args.mode, i, sam_model, device, args.bseed)
+            dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
+            dices_coronal.append(dice_coronal)
 
         pred_axial_ori, pred_sagittal_ori, pred_coronal_ori = resize2origin(preds_axial, preds_sagittal, preds_coronal, original_shape, args.mode, id)
-        pred_final = majority_voting(pred_axial_ori, pred_sagittal_ori, pred_coronal_ori)
-        dice_final = compute_dice_coefficient(original_gtarray, pred_final)
-        dices_final.append(dice_final)
+        if args.pred_vote:
+            pred_final = majority_voting(pred_axial_ori, pred_sagittal_ori, pred_coronal_ori)
+            dice_final = compute_dice_coefficient(original_gtarray, pred_final)
+            dices_final.append(dice_final)
 
-    np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_3views_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_final)   
+            np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_3views_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_final)   
     np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_axial_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_axial)
     np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_sagittal_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_sagittal)
     np.save(os.path.join(args.output_dir, f'{args.mode}_vote_upsampled_coronal_emb_bseed{args.bseed}_sample{args.num_samples}_sseed{args.sseed}.npy'), dices_coronal)
