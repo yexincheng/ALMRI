@@ -253,7 +253,7 @@ if __name__ == '__main__':
             dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
             dices_coronal.append(dice_coronal)
         else:
-            mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = upsampled_vote(bbox_model, i, args.mode, original_shape, args.mask_vote)
+            mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = upsampled_vote(bbox_model, i, args.mode, views, original_shape, args.mask_vote)
             preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(mask_preds_axial_ori, views[0], args.mode, i, sam_model, device, args.bseed)
             dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
             dices_axial.append(dice_axial)
