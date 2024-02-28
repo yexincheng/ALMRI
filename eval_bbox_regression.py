@@ -20,10 +20,10 @@ import skimage
 import SimpleITK as sitk
 from metrics import compute_dice_coefficient
 
-def upsampled_vote(bbox_model, index, mode, original_shape, mask_vote=True):
-    axial_view = 'MRI_LeftKidney_axial_all'
-    sagittal_view = 'MRI_LeftKidney_sagittal_all'
-    coronal_view = 'MRI_LeftKidney_coronal_all'
+def upsampled_vote(bbox_model, index, mode, views, original_shape, mask_vote=True):
+    axial_view = views[0]
+    sagittal_view = views[1]
+    coronal_view = views[2]
 
     axial_set = sorted(glob(os.path.join('/scratch/project/bollmann_lab/xincheng/segmentation/ALMRI/datasets/RAINE_organ_51', axial_view, mode, '*.npz')))
     sagittal_set = sorted(glob(os.path.join('/scratch/project/bollmann_lab/xincheng/segmentation/ALMRI/datasets/RAINE_organ_51', sagittal_view, mode, '*.npz')))
@@ -82,7 +82,7 @@ def upsampled_vote(bbox_model, index, mode, original_shape, mask_vote=True):
         mask_preds_axial.append(mask_pred_l_axial)    
 
         # gts_downsampled.append(cv2.resize(gt_axial, dsize=(64, 64), interpolation=cv2.INTER_NEAREST))
-    mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = resize2origin(mask_preds_axial, mask_preds_sagittal, mask_preds_coronal, original_shape, mode, id)
+    mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = resize2origin(mask_preds_axial, mask_preds_sagittal, mask_preds_coronal, views, original_shape, mode, id)
     if mask_vote:
         start_time = time.time()
         vote_mask_preds = majority_voting(mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori)
@@ -213,6 +213,11 @@ if __name__ == '__main__':
     dices_axial = []
     dices_sagittal = []
     dices_coronal = []
+    if 'medsam' in args.checkpoint:
+        views = ['medsam_MRI_LeftKidney_axial_all', 'medsam_MRI_LeftKidney_sagittal_all', 'medsam_MRI_LeftKidney_coronal_all']
+    else:
+        views = ['MRI_LeftKidney_axial_all', 'MRI_LeftKidney_sagittal_all', 'MRI_LeftKidney_coronal_all']
+
     print(f'Mask vote {args.mask_vote}, Pred vote {args.pred_vote}, Mode {args.mode}, Num samples {args.num_samples}, Bseed {args.bseed}, Sseed {args.sseed}')
     for i in tqdm(range(len(id_set))):
         
@@ -228,7 +233,7 @@ if __name__ == '__main__':
             if os.path.exists(os.path.join('datasets/vote_mask_preds_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy')):
                 vote_mask_preds = np.load(os.path.join('datasets/vote_mask_preds_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'))
             else:
-                vote_mask_preds = upsampled_vote(bbox_model, i, args.mode, original_shape, args.mask_vote)
+                vote_mask_preds = upsampled_vote(bbox_model, i, args.mode, views, original_shape, args.mask_vote)
                 np.save(os.path.join('datasets/vote_mask_preds_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'), vote_mask_preds)
 
              # clean mask from axial view to remove the right kidney
@@ -236,32 +241,32 @@ if __name__ == '__main__':
                 index = slice.shape[1] //2  
                 slice[:,0:index] = 0
 
-            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_axial_all', args.mode, i, sam_model, device, args.bseed)
+            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(vote_mask_preds, views[0], args.mode, i, sam_model, device, args.bseed)
             dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
             dices_axial.append(dice_axial)
 
-            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_sagittal_all', args.mode, i, sam_model, device, args.bseed)
+            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(vote_mask_preds, views[1], args.mode, i, sam_model, device, args.bseed)
             dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
             dices_sagittal.append(dice_sagittal)
 
-            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(vote_mask_preds, 'MRI_LeftKidney_coronal_all', args.mode, i, sam_model, device, args.bseed)
+            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(vote_mask_preds, views[2], args.mode, i, sam_model, device, args.bseed)
             dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
             dices_coronal.append(dice_coronal)
         else:
             mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = upsampled_vote(bbox_model, i, args.mode, original_shape, args.mask_vote)
-            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(mask_preds_axial_ori, 'MRI_LeftKidney_axial_all', args.mode, i, sam_model, device, args.bseed)
+            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(mask_preds_axial_ori, views[0], args.mode, i, sam_model, device, args.bseed)
             dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
             dices_axial.append(dice_axial)
 
-            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(mask_preds_sagittal_ori, 'MRI_LeftKidney_sagittal_all', args.mode, i, sam_model, device, args.bseed)
+            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(mask_preds_sagittal_ori, views[1], args.mode, i, sam_model, device, args.bseed)
             dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
             dices_sagittal.append(dice_sagittal)
 
-            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(mask_preds_coronal_ori, 'MRI_LeftKidney_coronal_all', args.mode, i, sam_model, device, args.bseed)
+            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(mask_preds_coronal_ori, views[2], args.mode, i, sam_model, device, args.bseed)
             dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
             dices_coronal.append(dice_coronal)
 
-        pred_axial_ori, pred_sagittal_ori, pred_coronal_ori = resize2origin(preds_axial, preds_sagittal, preds_coronal, original_shape, args.mode, id)
+        pred_axial_ori, pred_sagittal_ori, pred_coronal_ori = resize2origin(preds_axial, preds_sagittal, preds_coronal, views, original_shape, args.mode, id)
         if args.pred_vote:
             pred_final = majority_voting(pred_axial_ori, pred_sagittal_ori, pred_coronal_ori)
             dice_final = compute_dice_coefficient(original_gtarray, pred_final)
