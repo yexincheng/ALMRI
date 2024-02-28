@@ -15,8 +15,10 @@ module load cuda
 # module load gnu/5.4.0
 
 source activate medsam
-srun python pre_embeddings.py --task MRI_LeftKidney_coronal_all \
+srun python pre_embeddings.py --task medsam_MRI_LeftKidney_sagittal \
     --label_id 1 \
-    --mode test \
-    --filter 0 \
-    --view 1
+    --mode train \
+    --filter 3 \
+    --view 2 \
+    --prefix /scratch/project/bollmann_lab/xincheng/segmentation/ALMRI/datasets/RAINE_organ_51  \
+    --checkpoint  checkpoints/MedSAM/medsam_vit_b.pth
