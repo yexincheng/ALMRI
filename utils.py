@@ -47,7 +47,7 @@ def resize2origin(pred_axial, pred_sagittal, pred_coronal, views, original_shape
 def show_box(box, ax):
     x0, y0 = box[0], box[1]
     w, h = box[2] - box[0], box[3] - box[1]
-    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='blue', facecolor=(0,0,0,0), lw=2)) 
+    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='blue', facecolor=(0,0,0,0), lw=1.2)) 
 
 def save_preds_nii(id, prefix, task, mode, preds, save_path):
     # load image and gt
@@ -89,13 +89,13 @@ def min_max_norm_3dimg(img):
     img_norm = img_norm.astype(np.uint8)
     return img_norm
 
-def roi_bbox(gt2D):
+def roi_bbox(gt2D, seed=2024):
     '''Returns a bounding box from a mask region of interest (ROI)'''
     y_indices, x_indices = np.where(gt2D > 0)
     x_min, x_max = np.min(x_indices), np.max(x_indices)
     y_min, y_max = np.min(y_indices), np.max(y_indices)
     H, W = gt2D.shape
-    np.random.seed(2024)
+    np.random.seed(seed)
     x_min = max(0, x_min - np.random.randint(0, 20))
     x_max = min(W, x_max + np.random.randint(0, 20))
     y_min = max(0, y_min - np.random.randint(0, 20))
