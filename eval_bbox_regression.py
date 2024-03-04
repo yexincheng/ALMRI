@@ -92,7 +92,7 @@ def upsampled_vote(bbox_model, index, mode, views, original_shape, mask_vote=Tru
     else:
         return mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori
 
-def bbox_vote_infer(vote_mask_preds, view, mode, index, sam_model, device, seed, image_size):
+def bbox_vote_infer(vote_mask_preds, view, mode, index, sam_model, device, seed, image_size, bbox_shift):
 
     dataset = sorted(glob(os.path.join('/scratch/project/bollmann_lab/xincheng/segmentation/ALMRI/datasets/RAINE_organ_51', view, mode, '*.npz')))
     id = dataset[index].split('/')[-1].split('.')[0]
@@ -135,10 +135,10 @@ def bbox_vote_infer(vote_mask_preds, view, mode, index, sam_model, device, seed,
             x_min, x_max = np.min(x_indices), np.max(x_indices)
             y_min, y_max = np.min(y_indices), np.max(y_indices)
             np.random.seed(seed)
-            x_min = max(0, x_min - np.random.randint(0, 20))
-            x_max = min(W, x_max + np.random.randint(0, 20))
-            y_min = max(0, y_min - np.random.randint(0, 20))
-            y_max = min(H, y_max + np.random.randint(0, 20))
+            x_min = max(0, x_min - np.random.randint(0, bbox_shift))
+            x_max = min(W, x_max + np.random.randint(0, bbox_shift))
+            y_min = max(0, y_min - np.random.randint(15, bbox_shift+15))
+            y_max = min(H, y_max + np.random.randint(0, bbox_shift))
             bbox = np.array([x_min, y_min, x_max, y_max])
         # predictor.set_image(img)
         # masks, _, _ = predictor.predict(
@@ -197,9 +197,10 @@ if __name__ == '__main__':
     parser.add_argument('--mask_vote', action='store_true', default=False)
     parser.add_argument('--pred_vote', action='store_true', default=False)
     parser.add_argument('--image_size', type=int, default=256)
+    parser.add_argument('--bbox_shift', type=int, default=20)
     args = parser.parse_args()
    
-    bbox_model = pickle.load(open(f'checkpoints/medsam_bbox_regression/{args.task}_{args.num_samples}samples_seed{args.sseed}.pkl', 'rb'))
+    bbox_model = pickle.load(open(f'checkpoints/medsam_norm_bbox_regression/{args.task}_{args.num_samples}samples_seed{args.sseed}.pkl', 'rb'))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -215,7 +216,7 @@ if __name__ == '__main__':
     dices_sagittal = []
     dices_coronal = []
     if 'medsam' in args.checkpoint:
-        views = ['medsam_MRI_LeftKidney_axial_all', 'medsam_MRI_LeftKidney_sagittal_all', 'medsam_MRI_LeftKidney_coronal_all']
+        views = ['medsam_MRI_LeftKidney_axial_norm_all', 'medsam_MRI_LeftKidney_sagittal_norm_all', 'medsam_MRI_LeftKidney_coronal_norm_all']
     else:
         views = ['MRI_LeftKidney_axial_all', 'MRI_LeftKidney_sagittal_all', 'MRI_LeftKidney_coronal_all']
     print(f'Dataset {views}')
@@ -231,39 +232,39 @@ if __name__ == '__main__':
         original_shape = original_gtarray.shape
 
         if args.mask_vote:
-            if os.path.exists(os.path.join('datasets/vote_mask_preds_nature_medsam_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy')):
-                vote_mask_preds = np.load(os.path.join('datasets/vote_mask_preds_nature_medsam_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'))
+            if os.path.exists(os.path.join('datasets/vote_mask_preds_nature_medsam_norm_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy')):
+                vote_mask_preds = np.load(os.path.join('datasets/vote_mask_preds_nature_medsam_norm_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'))
             else:
                 vote_mask_preds = upsampled_vote(bbox_model, i, args.mode, views, original_shape, args.mask_vote)
-                np.save(os.path.join('datasets/vote_mask_preds_nature_medsam_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'), vote_mask_preds)
+                np.save(os.path.join('datasets/vote_mask_preds_nature_medsam_norm_all/', f'{id}_3views_{args.num_samples}samples_seed{args.sseed}.npy'), vote_mask_preds)
 
              # clean mask from axial view to remove the right kidney
             for slice in vote_mask_preds:
                 index = slice.shape[1] //2  
                 slice[:,0:index] = 0
 
-            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(vote_mask_preds, views[0], args.mode, i, sam_model, device, args.bseed, args.image_size)
+            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(vote_mask_preds, views[0], args.mode, i, sam_model, device, args.bseed, args.image_size, args.bbox_shift)
             dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
             dices_axial.append(dice_axial)
 
-            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(vote_mask_preds, views[1], args.mode, i, sam_model, device, args.bseed, args.image_size)
+            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(vote_mask_preds, views[1], args.mode, i, sam_model, device, args.bseed, args.image_size, args.bbox_shift)
             dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
             dices_sagittal.append(dice_sagittal)
 
-            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(vote_mask_preds, views[2], args.mode, i, sam_model, device, args.bseed, args.image_size)
+            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(vote_mask_preds, views[2], args.mode, i, sam_model, device, args.bseed, args.image_size, args.bbox_shift)
             dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
             dices_coronal.append(dice_coronal)
         else:
             mask_preds_axial_ori, mask_preds_sagittal_ori, mask_preds_coronal_ori = upsampled_vote(bbox_model, i, args.mode, views, original_shape, args.mask_vote)
-            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(mask_preds_axial_ori, views[0], args.mode, i, sam_model, device, args.bseed, args.image_size)
+            preds_axial, bboxes_axial, imgs_axial, gts_axial = bbox_vote_infer(mask_preds_axial_ori, views[0], args.mode, i, sam_model, device, args.bseed, args.image_size, args.bbox_shift)
             dice_axial = compute_dice_coefficient(gts_axial, preds_axial)
             dices_axial.append(dice_axial)
 
-            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(mask_preds_sagittal_ori, views[1], args.mode, i, sam_model, device, args.bseed, args.image_size)
+            preds_sagittal, bboxes_sagittal, imgs_sagittal, gts_sagittal = bbox_vote_infer(mask_preds_sagittal_ori, views[1], args.mode, i, sam_model, device, args.bseed, args.image_size, args.bbox_shift)
             dice_sagittal = compute_dice_coefficient(gts_sagittal, preds_sagittal)
             dices_sagittal.append(dice_sagittal)
 
-            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(mask_preds_coronal_ori, views[2], args.mode, i, sam_model, device, args.bseed, args.image_size)
+            preds_coronal, bboxes_coronal, imgs_coronal, gts_coronal = bbox_vote_infer(mask_preds_coronal_ori, views[2], args.mode, i, sam_model, device, args.bseed, args.image_size, args.bbox_shift)
             dice_coronal = compute_dice_coefficient(gts_coronal, preds_coronal)
             dices_coronal.append(dice_coronal)
 
