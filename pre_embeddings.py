@@ -24,7 +24,7 @@ def get_slice(array, index, i):
         return array[:,:,i]
 
 # preprocess the dataset
-def sam_preprocess(filter, view, img, gt, image_size, sam_model, device):
+def sam_preprocess(filter, view, img, gt, image_size, sam_model, device, post_norm):
     """Resize image and ground truth to 256*256, and get the image embedding
     Args:
         img: 3D image
@@ -65,6 +65,11 @@ def sam_preprocess(filter, view, img, gt, image_size, sam_model, device):
                 resize_img_tensor = torch.as_tensor(resize_img.transpose(2, 0, 1)).to(device)
                 # model input: (1, 3, 1024, 1024)
                 input_image = sam_model.preprocess(resize_img_tensor[None,:,:,:]) # (1, 3, 1024, 1024)
+                if post_norm:
+                    print('post normalization')
+                    input_image = input_image.cpu().numpy()
+                    input_image = (input_image - input_image.min()) / np.clip(input_image.max() - input_image.min(), a_min=1e-8, a_max=None)
+                    input_image = torch.as_tensor(input_image).to(device)
                 assert input_image.shape == (1, 3, sam_model.image_encoder.img_size, sam_model.image_encoder.img_size), 'input image should be resized to 1024*1024'
                 with torch.no_grad():
                     embedding = sam_model.image_encoder(input_image)
@@ -88,6 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='train', help='train or test')
     parser.add_argument('--filter', type=int, default=3, help='filter for selecting slice containing organ')
     parser.add_argument('--view', type=int, default=0, help='0 for axial, 1 for coronal, 2 for sagittal')
+    parser.add_argument('--post_norm', action='store_true', help='post normalization for sam model')
     args = parser.parse_args()
     # label id
     # left kidney: 1,
@@ -135,7 +141,7 @@ if __name__ == '__main__':
         img_norm = min_max_norm_3dimg(img_array) 
 
         # preprocess the image and gt for SAM
-        imgs, gts, img_embeddings, label_index = sam_preprocess(args.filter, args.view, img_norm, gt_array, args.image_size, sam_model, device)
+        imgs, gts, img_embeddings, label_index = sam_preprocess(args.filter, args.view, img_norm, gt_array, args.image_size, sam_model, device, args.post_norm)
         sub_index[name] = label_index
         # stack the list to array then save to npz file
         if len(imgs)>1:
