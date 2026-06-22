@@ -96,8 +96,7 @@ if  __name__ == '__main__':
     dice_test = []
 
     if args.wandb:
-        wandb.login(key='4aaa2e71cdec13a78a42c6ceac38dd0c7235a131', relogin=True)
-        print('wandb login')
+
         wandb.init(
             settings=wandb.Settings(start_method="thread"),
             # reinit=True,

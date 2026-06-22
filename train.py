@@ -58,7 +58,6 @@ if  __name__ == '__main__':
 
     # wandb
     if args.wandb:
-        wandb.login(key='4aaa2e71cdec13a78a42c6ceac38dd0c7235a131', relogin=True, settings=wandb.Settings(_service_wait=300))
         wandb.init(
             project="SAM-Activelearning", 
             group="random",
