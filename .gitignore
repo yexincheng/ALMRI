@@ -4,6 +4,8 @@ datasets*
 checkpoints*
 results*
 figures*
+*.npz
+*.npy
 
 # ipython/jupyter notebooks
 **/.ipynb_checkpoints/
